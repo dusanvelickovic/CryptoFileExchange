@@ -34,6 +34,11 @@ namespace CryptoFileExchange.Tests
             totalFailed += tigerResults.failed;
             Console.WriteLine();
 
+            var metadataResults = MetadataServiceTests.RunAllTests();
+            totalPassed += metadataResults.passed;
+            totalFailed += metadataResults.failed;
+            Console.WriteLine();
+
             PrintGlobalSummary(totalPassed, totalFailed);
         }
 
@@ -43,7 +48,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("            OVERALL TEST SUMMARY            ");
             Console.WriteLine("============================================");
             Console.WriteLine();
-            Console.WriteLine($"  Total Test Suites:  4");
+            Console.WriteLine($"  Total Test Suites:  5");
             Console.WriteLine($"  Total Tests:        {totalPassed + totalFailed}");
             Console.WriteLine($"  Passed:          {totalPassed}");
             Console.WriteLine($"  Failed:          {totalFailed}");
