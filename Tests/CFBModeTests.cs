@@ -1,10 +1,10 @@
 using System;
 using System.Text;
-using CryptoFileExchange.Algorithms.Symmetric;
+using CryptoFileExchange.Algorithms.BlockCipher;
 
 namespace CryptoFileExchange.Tests
 {
-    internal class EnigmaEngineTests
+    internal class CFBModeTests
     {
         private static int _passedTests = 0;
         private static int _failedTests = 0;
@@ -14,14 +14,14 @@ namespace CryptoFileExchange.Tests
             _passedTests = 0;
             _failedTests = 0;
 
-            Console.WriteLine("=== EnigmaEngine Test Suite ===\n");
+            Console.WriteLine("=== CFBMode Test Suite ===\n");
 
             TestBasicEncryptDecrypt();
             TestEmptyData();
             TestDifferentKeys();
             TestLargeData();
-            TestBinaryData();
-            TestSymmetry();
+            TestIVUniqueness();
+            TestDifferentBlockSizes();
 
             PrintSummary();
             return (_passedTests, _failedTests);
@@ -29,7 +29,7 @@ namespace CryptoFileExchange.Tests
 
         private static void PrintSummary()
         {
-            Console.WriteLine("\n=== EnigmaEngine Summary ===");
+            Console.WriteLine("\n=== CFBMode Summary ===");
             Console.WriteLine($"Total Tests: {_passedTests + _failedTests}");
             Console.WriteLine($"Passed: {_passedTests}");
             Console.WriteLine($"Failed: {_failedTests}");
@@ -61,20 +61,20 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 1: Basic Encrypt/Decrypt");
             try
             {
-                EnigmaEngine enigma = new EnigmaEngine();
-                string testData = "Hello, this is a test message!";
-                string key = "MySecretKey123";
+                CFBMode cfb = new CFBMode();
+                string testData = "CFB Mode encryption test!";
+                string key = "CFBSecretKey";
 
                 byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
-                byte[] encrypted = enigma.Encrypt(plainBytes, key);
-                byte[] decrypted = enigma.Decrypt(encrypted, key);
+                byte[] encrypted = cfb.Encrypt(plainBytes, key);
+                byte[] decrypted = cfb.Decrypt(encrypted, key);
                 string result = Encoding.UTF8.GetString(decrypted);
 
                 if (result == testData)
                 {
                     Pass("Data correctly encrypted and decrypted");
                     Console.WriteLine($"   Original: {testData}");
-                    Console.WriteLine($"   Encrypted length: {encrypted.Length} bytes");
+                    Console.WriteLine($"   Encrypted length: {encrypted.Length} bytes (includes IV)");
                     Console.WriteLine($"   Decrypted: {result}");
                 }
                 else
@@ -96,11 +96,11 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 2: Empty Data Handling");
             try
             {
-                EnigmaEngine enigma = new EnigmaEngine();
+                CFBMode cfb = new CFBMode();
                 byte[] emptyData = new byte[0];
                 string key = "TestKey";
 
-                enigma.Encrypt(emptyData, key);
+                cfb.Encrypt(emptyData, key);
                 Fail("Should throw exception for empty data");
             }
             catch (ArgumentException)
@@ -119,25 +119,33 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 3: Different Keys");
             try
             {
-                EnigmaEngine enigma = new EnigmaEngine();
-                string testData = "Secret message";
+                CFBMode cfb = new CFBMode();
+                string testData = "Secret CFB message";
                 string key1 = "Key1";
                 string key2 = "Key2";
 
                 byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
-                byte[] encrypted = enigma.Encrypt(plainBytes, key1);
-                byte[] decrypted = enigma.Decrypt(encrypted, key2);
-                string result = Encoding.UTF8.GetString(decrypted);
+                byte[] encrypted = cfb.Encrypt(plainBytes, key1);
+                
+                try
+                {
+                    byte[] decrypted = cfb.Decrypt(encrypted, key2);
+                    string result = Encoding.UTF8.GetString(decrypted);
 
-                if (result != testData)
-                {
-                    Pass("Different keys produce different results");
-                    Console.WriteLine($"   Original: {testData}");
-                    Console.WriteLine($"   With wrong key: {result}");
+                    if (result != testData)
+                    {
+                        Pass("Different keys produce different results");
+                        Console.WriteLine($"   Original: {testData}");
+                        Console.WriteLine($"   With wrong key: (corrupted data)");
+                    }
+                    else
+                    {
+                        Fail("Same result with different keys");
+                    }
                 }
-                else
+                catch
                 {
-                    Fail("Same result with different keys");
+                    Pass("Wrong key causes decryption failure");
                 }
             }
             catch (Exception ex)
@@ -152,18 +160,18 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 4: Large Data");
             try
             {
-                EnigmaEngine enigma = new EnigmaEngine();
+                CFBMode cfb = new CFBMode();
                 StringBuilder sb = new StringBuilder();
                 for (int i = 0; i < 1000; i++)
                 {
-                    sb.Append($"Line {i}: This is a test of large data encryption. ");
+                    sb.Append($"CFB {i}: Stream cipher mode test. ");
                 }
                 string testData = sb.ToString();
-                string key = "LargeDataKey";
+                string key = "LargeCFBKey";
 
                 byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
-                byte[] encrypted = enigma.Encrypt(plainBytes, key);
-                byte[] decrypted = enigma.Decrypt(encrypted, key);
+                byte[] encrypted = cfb.Encrypt(plainBytes, key);
+                byte[] decrypted = cfb.Decrypt(encrypted, key);
                 string result = Encoding.UTF8.GetString(decrypted);
 
                 if (result == testData)
@@ -183,47 +191,49 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestBinaryData()
+        private static void TestIVUniqueness()
         {
-            Console.WriteLine("Test 5: Binary Data");
+            Console.WriteLine("Test 5: IV Uniqueness");
             try
             {
-                EnigmaEngine enigma = new EnigmaEngine();
-                byte[] binaryData = new byte[256];
-                for (int i = 0; i < 256; i++)
-                {
-                    binaryData[i] = (byte)i;
-                }
-                string key = "BinaryKey";
+                CFBMode cfb = new CFBMode();
+                string testData = "Same data, different IV";
+                string key = "SameKey";
 
-                byte[] encrypted = enigma.Encrypt(binaryData, key);
-                byte[] decrypted = enigma.Decrypt(encrypted, key);
+                byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
+                byte[] encrypted1 = cfb.Encrypt(plainBytes, key);
+                byte[] encrypted2 = cfb.Encrypt(plainBytes, key);
 
-                bool match = true;
-                if (decrypted.Length != binaryData.Length)
+                bool ivsDifferent = false;
+                int blockSize = cfb.BlockSize;
+                
+                for (int i = 0; i < blockSize && i < encrypted1.Length && i < encrypted2.Length; i++)
                 {
-                    match = false;
-                }
-                else
-                {
-                    for (int i = 0; i < binaryData.Length; i++)
+                    if (encrypted1[i] != encrypted2[i])
                     {
-                        if (decrypted[i] != binaryData[i])
-                        {
-                            match = false;
-                            break;
-                        }
+                        ivsDifferent = true;
+                        break;
                     }
                 }
 
-                if (match)
+                if (ivsDifferent)
                 {
-                    Pass("Binary data correctly encrypted and decrypted");
-                    Console.WriteLine($"   All 256 byte values preserved");
+                    Pass("Each encryption uses unique IV");
+                    Console.WriteLine($"   Same plaintext produces different ciphertext");
                 }
                 else
                 {
-                    Fail("Binary data corruption");
+                    Fail("IVs are identical (security risk)");
+                }
+
+                byte[] decrypted1 = cfb.Decrypt(encrypted1, key);
+                byte[] decrypted2 = cfb.Decrypt(encrypted2, key);
+                string result1 = Encoding.UTF8.GetString(decrypted1);
+                string result2 = Encoding.UTF8.GetString(decrypted2);
+
+                if (result1 == testData && result2 == testData)
+                {
+                    Console.WriteLine("   Both decrypt correctly to original");
                 }
             }
             catch (Exception ex)
@@ -233,30 +243,46 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestSymmetry()
+        private static void TestDifferentBlockSizes()
         {
-            Console.WriteLine("Test 6: Symmetry (Encrypt = Decrypt in Enigma)");
+            Console.WriteLine("Test 6: Different Block Sizes");
             try
             {
-                EnigmaEngine enigma = new EnigmaEngine();
-                string testData = "Symmetry Test";
-                string key = "SymmetricKey";
+                int[] blockSizes = { 8, 16, 32 };
+                string testData = "Testing different block sizes for CFB mode";
+                string key = "BlockSizeTestKey";
+                bool allPassed = true;
 
-                byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
-                byte[] encrypted1 = enigma.Encrypt(plainBytes, key);
-                byte[] encrypted2 = enigma.Encrypt(encrypted1, key);
-
-                string result = Encoding.UTF8.GetString(encrypted2);
-
-                if (result == testData)
+                foreach (int blockSize in blockSizes)
                 {
-                    Pass("Enigma is symmetric (E(E(M)) = M)");
-                    Console.WriteLine($"   Original: {testData}");
-                    Console.WriteLine($"   After double encryption: {result}");
+                    try
+                    {
+                        CFBMode cfb = new CFBMode(blockSize);
+                        byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
+                        byte[] encrypted = cfb.Encrypt(plainBytes, key);
+                        byte[] decrypted = cfb.Decrypt(encrypted, key);
+                        string result = Encoding.UTF8.GetString(decrypted);
+
+                        if (result != testData)
+                        {
+                            allPassed = false;
+                            Console.WriteLine($"   ? Failed for block size {blockSize}");
+                        }
+                    }
+                    catch
+                    {
+                        allPassed = false;
+                        Console.WriteLine($"   ? Exception for block size {blockSize}");
+                    }
+                }
+
+                if (allPassed)
+                {
+                    Pass("All block sizes (8, 16, 32) work correctly");
                 }
                 else
                 {
-                    Fail("Symmetry not working");
+                    Fail("Some block sizes failed");
                 }
             }
             catch (Exception ex)
