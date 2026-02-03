@@ -14,8 +14,6 @@ namespace CryptoFileExchange
             {
                 Console.WriteLine("Running in Console Test Mode...\n");
                 TestRunner.RunAllTests();
-                Console.WriteLine("\nPress any key to exit...");
-                Console.ReadKey();
                 return;
             }
 
