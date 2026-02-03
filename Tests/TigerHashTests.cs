@@ -232,20 +232,23 @@ namespace CryptoFileExchange.Tests
                     Fail("Binary data hashing failed");
                 }
 
-                byte[] hash2 = tiger.ComputeHash(binaryData);
-                bool consistent = true;
-                for (int i = 0; i < hash.Length; i++)
+                if (hash != null)
                 {
-                    if (hash[i] != hash2[i])
+                    byte[] hash2 = tiger.ComputeHash(binaryData);
+                    bool consistent = true;
+                    for (int i = 0; i < hash.Length; i++)
                     {
-                        consistent = false;
-                        break;
+                        if (hash[i] != hash2[i])
+                        {
+                            consistent = false;
+                            break;
+                        }
                     }
-                }
 
-                if (consistent)
-                {
-                    Console.WriteLine("   Binary data produces consistent hash");
+                    if (consistent)
+                    {
+                        Console.WriteLine("   Binary data produces consistent hash");
+                    }
                 }
             }
             catch (Exception ex)
