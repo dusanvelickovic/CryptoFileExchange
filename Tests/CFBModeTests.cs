@@ -4,59 +4,29 @@ using CryptoFileExchange.Algorithms.BlockCipher;
 
 namespace CryptoFileExchange.Tests
 {
-    internal class CFBModeTests
+    internal class CFBModeTests : TestBase
     {
-        private static int _passedTests = 0;
-        private static int _failedTests = 0;
+        protected override string GetTestSuiteName() => "CFBMode";
 
         public static (int passed, int failed) RunAllTests()
         {
-            _passedTests = 0;
-            _failedTests = 0;
+            var instance = new CFBModeTests();
+            instance.ResetCounters();
 
             Console.WriteLine("=== CFBMode Test Suite ===\n");
 
-            TestBasicEncryptDecrypt();
-            TestEmptyData();
-            TestDifferentKeys();
-            TestLargeData();
-            TestIVUniqueness();
-            TestDifferentBlockSizes();
+            instance.TestBasicEncryptDecrypt();
+            instance.TestEmptyData();
+            instance.TestDifferentKeys();
+            instance.TestLargeData();
+            instance.TestIVUniqueness();
+            instance.TestDifferentBlockSizes();
 
-            PrintSummary();
-            return (_passedTests, _failedTests);
+            instance.PrintSummary();
+            return instance.GetResults();
         }
 
-        private static void PrintSummary()
-        {
-            Console.WriteLine("\n=== CFBMode Summary ===");
-            Console.WriteLine($"Total Tests: {_passedTests + _failedTests}");
-            Console.WriteLine($"Passed: {_passedTests}");
-            Console.WriteLine($"Failed: {_failedTests}");
-            
-            if (_failedTests == 0)
-            {
-                Console.WriteLine("All tests PASSED!");
-            }
-            else
-            {
-                Console.WriteLine($" {_failedTests} test(s) FAILED!");
-            }
-        }
-
-        private static void Pass(string message)
-        {
-            _passedTests++;
-            Console.WriteLine($"PASSED - {message}");
-        }
-
-        private static void Fail(string message)
-        {
-            _failedTests++;
-            Console.WriteLine($"FAILED - {message}");
-        }
-
-        private static void TestBasicEncryptDecrypt()
+        private void TestBasicEncryptDecrypt()
         {
             Console.WriteLine("Test 1: Basic Encrypt/Decrypt");
             try
@@ -91,7 +61,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestEmptyData()
+        private void TestEmptyData()
         {
             Console.WriteLine("Test 2: Empty Data Handling");
             try
@@ -114,7 +84,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestDifferentKeys()
+        private void TestDifferentKeys()
         {
             Console.WriteLine("Test 3: Different Keys");
             try
@@ -155,7 +125,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestLargeData()
+        private void TestLargeData()
         {
             Console.WriteLine("Test 4: Large Data");
             try
@@ -191,7 +161,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestIVUniqueness()
+        private void TestIVUniqueness()
         {
             Console.WriteLine("Test 5: IV Uniqueness");
             try
@@ -243,7 +213,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestDifferentBlockSizes()
+        private void TestDifferentBlockSizes()
         {
             Console.WriteLine("Test 6: Different Block Sizes");
             try
@@ -266,13 +236,13 @@ namespace CryptoFileExchange.Tests
                         if (result != testData)
                         {
                             allPassed = false;
-                            Console.WriteLine($"   ? Failed for block size {blockSize}");
+                            Console.WriteLine($"   Failed for block size {blockSize}");
                         }
                     }
                     catch
                     {
                         allPassed = false;
-                        Console.WriteLine($"   ? Exception for block size {blockSize}");
+                        Console.WriteLine($"   Exception for block size {blockSize}");
                     }
                 }
 

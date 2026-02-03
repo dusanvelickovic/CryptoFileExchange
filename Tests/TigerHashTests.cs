@@ -4,59 +4,29 @@ using CryptoFileExchange.Algorithms.Hash;
 
 namespace CryptoFileExchange.Tests
 {
-    internal class TigerHashTests
+    internal class TigerHashTests : TestBase
     {
-        private static int _passedTests = 0;
-        private static int _failedTests = 0;
+        protected override string GetTestSuiteName() => "TigerHash";
 
         public static (int passed, int failed) RunAllTests()
         {
-            _passedTests = 0;
-            _failedTests = 0;
+            var instance = new TigerHashTests();
+            instance.ResetCounters();
 
             Console.WriteLine("=== TigerHash Test Suite ===\n");
 
-            TestBasicHashing();
-            TestEmptyData();
-            TestConsistency();
-            TestDifferentData();
-            TestLargeData();
-            TestBinaryData();
+            instance.TestBasicHashing();
+            instance.TestEmptyData();
+            instance.TestConsistency();
+            instance.TestDifferentData();
+            instance.TestLargeData();
+            instance.TestBinaryData();
 
-            PrintSummary();
-            return (_passedTests, _failedTests);
+            instance.PrintSummary();
+            return instance.GetResults();
         }
 
-        private static void PrintSummary()
-        {
-            Console.WriteLine("\n=== TigerHash Summary ===");
-            Console.WriteLine($"Total Tests: {_passedTests + _failedTests}");
-            Console.WriteLine($"Passed: {_passedTests}");
-            Console.WriteLine($"Failed: {_failedTests}");
-            
-            if (_failedTests == 0)
-            {
-                Console.WriteLine("All tests PASSED!");
-            }
-            else
-            {
-                Console.WriteLine($" {_failedTests} test(s) FAILED!");
-            }
-        }
-
-        private static void Pass(string message)
-        {
-            _passedTests++;
-            Console.WriteLine($"PASSED - {message}");
-        }
-
-        private static void Fail(string message)
-        {
-            _failedTests++;
-            Console.WriteLine($"FAILED - {message}");
-        }
-
-        private static void TestBasicHashing()
+        private void TestBasicHashing()
         {
             Console.WriteLine("Test 1: Basic Hashing");
             try
@@ -86,7 +56,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestEmptyData()
+        private void TestEmptyData()
         {
             Console.WriteLine("Test 2: Empty Data Handling");
             try
@@ -113,7 +83,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestConsistency()
+        private void TestConsistency()
         {
             Console.WriteLine("Test 3: Consistency (Same Input = Same Hash)");
             try
@@ -160,7 +130,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestDifferentData()
+        private void TestDifferentData()
         {
             Console.WriteLine("Test 4: Different Data = Different Hash");
             try
@@ -202,7 +172,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestLargeData()
+        private void TestLargeData()
         {
             Console.WriteLine("Test 5: Large Data Hashing");
             try
@@ -236,7 +206,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestBinaryData()
+        private void TestBinaryData()
         {
             Console.WriteLine("Test 6: Binary Data Hashing");
             try

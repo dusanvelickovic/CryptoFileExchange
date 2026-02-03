@@ -6,59 +6,29 @@ using CryptoFileExchange.Services;
 
 namespace CryptoFileExchange.Tests
 {
-    internal class MetadataServiceTests
+    internal class MetadataServiceTests : TestBase
     {
-        private static int _passedTests = 0;
-        private static int _failedTests = 0;
+        protected override string GetTestSuiteName() => "MetadataService";
 
         public static (int passed, int failed) RunAllTests()
         {
-            _passedTests = 0;
-            _failedTests = 0;
+            var instance = new MetadataServiceTests();
+            instance.ResetCounters();
 
             Console.WriteLine("=== MetadataService Test Suite ===\n");
 
-            TestJsonSerialization();
-            TestJsonDeserialization();
-            TestAddHeaderToFile();
-            TestReadHeaderFromFile();
-            TestCreateMetadata();
-            TestValidateFileFormat();
+            instance.TestJsonSerialization();
+            instance.TestJsonDeserialization();
+            instance.TestAddHeaderToFile();
+            instance.TestReadHeaderFromFile();
+            instance.TestCreateMetadata();
+            instance.TestValidateFileFormat();
 
-            PrintSummary();
-            return (_passedTests, _failedTests);
+            instance.PrintSummary();
+            return instance.GetResults();
         }
 
-        private static void PrintSummary()
-        {
-            Console.WriteLine("\n=== MetadataService Summary ===");
-            Console.WriteLine($"Total Tests: {_passedTests + _failedTests}");
-            Console.WriteLine($"Passed: {_passedTests}");
-            Console.WriteLine($"Failed: {_failedTests}");
-            
-            if (_failedTests == 0)
-            {
-                Console.WriteLine("All tests PASSED!");
-            }
-            else
-            {
-                Console.WriteLine($" {_failedTests} test(s) FAILED!");
-            }
-        }
-
-        private static void Pass(string message)
-        {
-            _passedTests++;
-            Console.WriteLine($"PASSED - {message}");
-        }
-
-        private static void Fail(string message)
-        {
-            _failedTests++;
-            Console.WriteLine($"FAILED - {message}");
-        }
-
-        private static void TestJsonSerialization()
+        private void TestJsonSerialization()
         {
             Console.WriteLine("Test 1: JSON Serialization");
             try
@@ -95,7 +65,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestJsonDeserialization()
+        private void TestJsonDeserialization()
         {
             Console.WriteLine("Test 2: JSON Deserialization");
             try
@@ -133,7 +103,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestAddHeaderToFile()
+        private void TestAddHeaderToFile()
         {
             Console.WriteLine("Test 3: Add Header To File");
             try
@@ -172,7 +142,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestReadHeaderFromFile()
+        private void TestReadHeaderFromFile()
         {
             Console.WriteLine("Test 4: Read Header From File");
             try
@@ -220,7 +190,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestCreateMetadata()
+        private void TestCreateMetadata()
         {
             Console.WriteLine("Test 5: Create Metadata");
             try
@@ -257,7 +227,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestValidateFileFormat()
+        private void TestValidateFileFormat()
         {
             Console.WriteLine("Test 6: Validate File Format");
             try

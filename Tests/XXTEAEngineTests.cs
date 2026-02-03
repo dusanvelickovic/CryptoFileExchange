@@ -4,59 +4,29 @@ using CryptoFileExchange.Algorithms.Symmetric;
 
 namespace CryptoFileExchange.Tests
 {
-    internal class XXTEAEngineTests
+    internal class XXTEAEngineTests : TestBase
     {
-        private static int _passedTests = 0;
-        private static int _failedTests = 0;
+        protected override string GetTestSuiteName() => "XXTEAEngine";
 
         public static (int passed, int failed) RunAllTests()
         {
-            _passedTests = 0;
-            _failedTests = 0;
+            var instance = new XXTEAEngineTests();
+            instance.ResetCounters();
 
             Console.WriteLine("=== XXTEAEngine Test Suite ===\n");
 
-            TestBasicEncryptDecrypt();
-            TestEmptyData();
-            TestDifferentKeys();
-            TestLargeData();
-            TestBinaryData();
-            TestBlockAlignment();
+            instance.TestBasicEncryptDecrypt();
+            instance.TestEmptyData();
+            instance.TestDifferentKeys();
+            instance.TestLargeData();
+            instance.TestBinaryData();
+            instance.TestBlockAlignment();
 
-            PrintSummary();
-            return (_passedTests, _failedTests);
+            instance.PrintSummary();
+            return instance.GetResults();
         }
 
-        private static void PrintSummary()
-        {
-            Console.WriteLine("\n=== XXTEAEngine Summary ===");
-            Console.WriteLine($"Total Tests: {_passedTests + _failedTests}");
-            Console.WriteLine($"Passed: {_passedTests}");
-            Console.WriteLine($"Failed: {_failedTests}");
-            
-            if (_failedTests == 0)
-            {
-                Console.WriteLine("All tests PASSED!");
-            }
-            else
-            {
-                Console.WriteLine($" {_failedTests} test(s) FAILED!");
-            }
-        }
-
-        private static void Pass(string message)
-        {
-            _passedTests++;
-            Console.WriteLine($"PASSED - {message}");
-        }
-
-        private static void Fail(string message)
-        {
-            _failedTests++;
-            Console.WriteLine($"FAILED - {message}");
-        }
-
-        private static void TestBasicEncryptDecrypt()
+        private void TestBasicEncryptDecrypt()
         {
             Console.WriteLine("Test 1: Basic Encrypt/Decrypt");
             try
@@ -91,7 +61,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestEmptyData()
+        private void TestEmptyData()
         {
             Console.WriteLine("Test 2: Empty Data Handling");
             try
@@ -114,7 +84,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestDifferentKeys()
+        private void TestDifferentKeys()
         {
             Console.WriteLine("Test 3: Different Keys");
             try
@@ -155,7 +125,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestLargeData()
+        private void TestLargeData()
         {
             Console.WriteLine("Test 4: Large Data");
             try
@@ -191,7 +161,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestBinaryData()
+        private void TestBinaryData()
         {
             Console.WriteLine("Test 5: Binary Data");
             try
@@ -241,7 +211,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine();
         }
 
-        private static void TestBlockAlignment()
+        private void TestBlockAlignment()
         {
             Console.WriteLine("Test 6: Block Alignment & Padding");
             try
