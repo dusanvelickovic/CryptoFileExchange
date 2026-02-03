@@ -28,12 +28,32 @@
         /// </summary>
         private void InitializeComponent()
         {
-            components = new System.ComponentModel.Container();
-            AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
-            Text = "Form1";
+            fileWatcherPanel = new UI.FileWatcherPanel();
+            SuspendLayout();
+
+            // 
+            // fileWatcherPanel
+            // 
+            fileWatcherPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            fileWatcherPanel.Location = new System.Drawing.Point(0, 0);
+            fileWatcherPanel.Name = "fileWatcherPanel";
+            fileWatcherPanel.Size = new System.Drawing.Size(800, 600);
+            fileWatcherPanel.TabIndex = 0;
+
+            // 
+            // Form1
+            // 
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(800, 600);
+            Controls.Add(fileWatcherPanel);
+            Name = "Form1";
+            Text = "CryptoFileExchange - Auto Encryption";
+            ResumeLayout(false);
         }
 
         #endregion
+
+        private UI.FileWatcherPanel fileWatcherPanel;
     }
 }

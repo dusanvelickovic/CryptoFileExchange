@@ -11,7 +11,7 @@ namespace CryptoFileExchange.Services
         private readonly string _encryptedOutputDirectory;
         private bool _isRunning;
 
-        // Eventi za notifikaciju UI-ja
+        // Eventi za notifikacije UI-ja
         public event EventHandler<FileDetectedEventArgs> FileDetected;
         public event EventHandler<FileEncryptedEventArgs> FileEncrypted;
         public event EventHandler<FileErrorEventArgs> FileError;

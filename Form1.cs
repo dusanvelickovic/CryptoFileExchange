@@ -1,3 +1,5 @@
+using CryptoFileExchange.UI;
+
 namespace CryptoFileExchange
 {
     public partial class Form1 : Form
