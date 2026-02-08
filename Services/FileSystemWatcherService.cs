@@ -11,10 +11,16 @@ namespace CryptoFileExchange.Services
         private readonly string _encryptedOutputDirectory;
         private bool _isRunning;
 
+        // Prag za odluku kada koristiti streaming (50 MB)
+        private const long STREAMING_THRESHOLD = 50 * 1024 * 1024;
+        // Velicina buffer-a za streaming (1 MB)
+        private const int BUFFER_SIZE = 1024 * 1024;
+
         // Eventi za notifikacije UI-ja
         public event EventHandler<FileDetectedEventArgs> FileDetected;
         public event EventHandler<FileEncryptedEventArgs> FileEncrypted;
         public event EventHandler<FileErrorEventArgs> FileError;
+        public event EventHandler<FileProgressEventArgs> FileProgress;
 
         /// <summary>
         /// Konstruktor FileSystemWatcherService
@@ -156,13 +162,24 @@ namespace CryptoFileExchange.Services
 
                 Log.Information("Starting automatic encryption: {FileName}", fileName);
 
-                // Citaj fajl
-                byte[] fileData = await File.ReadAllBytesAsync(sourceFilePath);
-                long fileSize = fileData.Length;
+                // Proveri velicinu fajla
+                FileInfo fileInfo = new FileInfo(sourceFilePath);
+                long fileSize = fileInfo.Length;
 
-                // TODO: Ovde integrisati tvoje encryption algoritme
-                // Za sada simulacija sifrovanja
-                byte[] encryptedData = SimulateEncryption(fileData);
+                byte[] encryptedData;
+
+                // Koristi streaming za velike fajlove
+                if (fileSize > STREAMING_THRESHOLD)
+                {
+                    Log.Information("Large file detected ({Size:N0} bytes). Using streaming approach.", fileSize);
+                    encryptedData = await EncryptFileStreamingAsync(sourceFilePath, fileSize);
+                }
+                else
+                {
+                    Log.Information("Small file detected ({Size:N0} bytes). Using in-memory approach.", fileSize);
+                    byte[] fileData = await File.ReadAllBytesAsync(sourceFilePath);
+                    encryptedData = SimulateEncryption(fileData);
+                }
 
                 // Sacuvaj sifrovani fajl
                 await File.WriteAllBytesAsync(encryptedFilePath, encryptedData);
@@ -195,6 +212,51 @@ namespace CryptoFileExchange.Services
                     ErrorMessage = ex.Message,
                     ErrorTime = DateTime.Now
                 });
+            }
+        }
+
+        /// <summary>
+        /// Sifruje veliki fajl koristeci streaming pristup (za fajlove > 50MB)
+        /// </summary>
+        private async Task<byte[]> EncryptFileStreamingAsync(string sourceFilePath, long fileSize)
+        {
+            using (var memoryStream = new MemoryStream())
+            {
+                using (var fileStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, BUFFER_SIZE, true))
+                {
+                    byte[] buffer = new byte[BUFFER_SIZE];
+                    long totalBytesRead = 0;
+                    int bytesRead;
+
+                    while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        totalBytesRead += bytesRead;
+
+                        // Sifruj chunk (za sada samo kopira, kasnije integrisi prave algoritme)
+                        byte[] chunk = new byte[bytesRead];
+                        Array.Copy(buffer, 0, chunk, 0, bytesRead);
+                        byte[] encryptedChunk = SimulateEncryption(chunk);
+
+                        // Upisuj sifrovani chunk
+                        await memoryStream.WriteAsync(encryptedChunk, 0, encryptedChunk.Length);
+
+                        // Posalji progress notifikaciju
+                        int progressPercentage = (int)((totalBytesRead * 100) / fileSize);
+                        OnFileProgressEvent(new FileProgressEventArgs
+                        {
+                            FileName = Path.GetFileName(sourceFilePath),
+                            FilePath = sourceFilePath,
+                            BytesProcessed = totalBytesRead,
+                            TotalBytes = fileSize,
+                            ProgressPercentage = progressPercentage
+                        });
+
+                        Log.Debug("Encryption progress: {FileName} - {Progress}% ({Processed}/{Total} bytes)",
+                            Path.GetFileName(sourceFilePath), progressPercentage, totalBytesRead, fileSize);
+                    }
+                }
+
+                return memoryStream.ToArray();
             }
         }
 
@@ -302,6 +364,14 @@ namespace CryptoFileExchange.Services
         }
 
         /// <summary>
+        /// Podize FileProgress dogadjaj
+        /// </summary>
+        protected virtual void OnFileProgressEvent(FileProgressEventArgs e)
+        {
+            FileProgress?.Invoke(this, e);
+        }
+
+        /// <summary>
         /// Provera da li je servis pokrenut
         /// </summary>
         public bool IsRunning => _isRunning;
@@ -353,6 +423,18 @@ namespace CryptoFileExchange.Services
         public required string FilePath { get; set; }
         public required string ErrorMessage { get; set; }
         public DateTime ErrorTime { get; set; }
+    }
+
+    /// <summary>
+    /// Argumenti dogadjaja za progres sifrovanja (koristi se za velike fajlove)
+    /// </summary>
+    public class FileProgressEventArgs : EventArgs
+    {
+        public required string FileName { get; set; }
+        public required string FilePath { get; set; }
+        public long BytesProcessed { get; set; }
+        public long TotalBytes { get; set; }
+        public int ProgressPercentage { get; set; }
     }
 
     #endregion

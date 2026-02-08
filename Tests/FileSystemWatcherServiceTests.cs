@@ -27,6 +27,7 @@ namespace CryptoFileExchange.Tests
             instance.TestMultipleFiles();
             instance.TestInvalidDirectory();
             instance.TestManualEncryption();
+            instance.TestLargeFileEncryption();
 
             CleanupTestDirectories();
 
@@ -268,6 +269,103 @@ namespace CryptoFileExchange.Tests
                 else
                 {
                     Fail($"Manual encryption failed. Result: {result}, Detected: {fileDetected}, Encrypted: {fileEncrypted}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Fail($"Exception: {ex.Message}");
+            }
+            Console.WriteLine();
+        }
+
+        private void TestLargeFileEncryption()
+        {
+            Console.WriteLine("Test 6: Large File Encryption (>50MB with streaming)");
+            try
+            {
+                var service = new FileSystemWatcherService(_testOutputDir);
+                bool fileDetected = false;
+                bool fileEncrypted = false;
+                bool progressReported = false;
+                int progressUpdates = 0;
+
+                service.FileDetected += (s, e) =>
+                {
+                    fileDetected = true;
+                    Console.WriteLine($"   File detected: {e.FileName}");
+                };
+
+                service.FileEncrypted += (s, e) =>
+                {
+                    fileEncrypted = true;
+                    Console.WriteLine($"   File encrypted: {e.OriginalFileName} -> {e.EncryptedFileName}");
+                    Console.WriteLine($"   Size: {e.OriginalFileSize:N0} bytes -> {e.EncryptedFileSize:N0} bytes");
+                };
+
+                service.FileProgress += (s, e) =>
+                {
+                    progressReported = true;
+                    progressUpdates++;
+                    if (progressUpdates % 10 == 0 || e.ProgressPercentage >= 100)
+                    {
+                        Console.WriteLine($"   Progress: {e.ProgressPercentage}% ({e.BytesProcessed:N0}/{e.TotalBytes:N0} bytes)");
+                    }
+                };
+
+                // Kreiraj veliki test fajl (60 MB)
+                string testFile = Path.Combine(_testTargetDir, "large_file.bin");
+                Console.WriteLine("   Creating 60 MB test file...");
+                
+                using (var fs = new FileStream(testFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    byte[] chunk = new byte[1024 * 1024]; // 1 MB chunk
+                    for (int i = 0; i < 60; i++) // 60 chunks = 60 MB
+                    {
+                        // Popuni chunk sa pseudo-random podacima
+                        for (int j = 0; j < chunk.Length; j++)
+                        {
+                            chunk[j] = (byte)((i * 1000 + j) % 256);
+                        }
+                        fs.Write(chunk, 0, chunk.Length);
+                    }
+                }
+
+                Console.WriteLine("   Test file created. Starting encryption...");
+
+                // FSW iskljucen - rucno sifrovanje
+                var result = service.EncryptFileManuallyAsync(testFile).Result;
+
+                // Sacekaj da se zavrsi
+                Thread.Sleep(3000);
+
+                if (result && fileDetected && fileEncrypted)
+                {
+                    Pass("Large file encrypted successfully");
+                    
+                    if (progressReported && progressUpdates > 0)
+                    {
+                        Pass($"Progress reported: {progressUpdates} updates (streaming mode confirmed)");
+                    }
+                    else
+                    {
+                        Fail("Progress not reported (streaming might not be working)");
+                    }
+
+                    // Proveri da li je fajl kreiran
+                    string expectedOutput = Path.Combine(_testOutputDir, "large_file.cfex");
+                    if (File.Exists(expectedOutput))
+                    {
+                        FileInfo outputInfo = new FileInfo(expectedOutput);
+                        Pass($"Encrypted file created: {outputInfo.Length:N0} bytes");
+                    }
+                    else
+                    {
+                        Fail("Encrypted file not found");
+                    }
+                }
+                else
+                {
+                    Fail($"Large file encryption failed. Result: {result}, Detected: {fileDetected}, Encrypted: {fileEncrypted}");
                 }
             }
             catch (Exception ex)

@@ -15,13 +15,42 @@ namespace CryptoFileExchange.UI
         public FileWatcherPanel()
         {
             InitializeComponent();
+            
+            // Eksplicitno konfiguriši ListView
+            ConfigureListView();
+            
             InitializeWatcherService();
+        }
+
+        private void ConfigureListView()
+        {
+            // Osiguraj da ListView ima kolone
+            if (listViewLog.Columns.Count == 0)
+            {
+                listViewLog.Columns.Add("Events", 770, HorizontalAlignment.Left);
+            }
+
+            // Osiguraj da je View postavljen
+            listViewLog.View = View.Details;
+            listViewLog.FullRowSelect = true;
+            listViewLog.GridLines = true;
+            listViewLog.HeaderStyle = ColumnHeaderStyle.None;
+
+            Log.Debug("ListView configured: Columns={ColumnCount}, View={View}", 
+                listViewLog.Columns.Count, listViewLog.View);
         }
 
         private void InitializeWatcherService()
         {
             try
             {
+                // TEST: Proveri da li ListView radi
+                if (listViewLog == null)
+                {
+                    MessageBox.Show("ListView is NULL!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
                 // Kreiraj output direktorijum u istom folderu kao exe
                 string outputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DEFAULT_OUTPUT_DIR);
                 _watcherService = new FileSystemWatcherService(outputPath);
@@ -30,16 +59,20 @@ namespace CryptoFileExchange.UI
                 _watcherService.FileDetected += OnFileDetected;
                 _watcherService.FileEncrypted += OnFileEncrypted;
                 _watcherService.FileError += OnFileError;
+                _watcherService.FileProgress += OnFileProgress;
 
                 txtOutputDirectory.Text = outputPath;
                 
                 // Dodaj inicijalni log zapis
                 AddLogEntry("FileWatcher service initialized successfully", Color.Green);
+                
+                Log.Information("FileWatcherPanel initialized with output path: {OutputPath}", outputPath);
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Service initialization error: {ex.Message}", 
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Log.Error(ex, "Failed to initialize FileWatcherService");
             }
         }
 
@@ -189,19 +222,100 @@ namespace CryptoFileExchange.UI
                 "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
+        private void OnFileProgress(object? sender, FileProgressEventArgs e)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(() => OnFileProgress(sender, e)));
+                return;
+            }
+
+            // Formatuj velicinu
+            string processed = FormatFileSize(e.BytesProcessed);
+            string total = FormatFileSize(e.TotalBytes);
+            
+            string message = $"[{DateTime.Now:HH:mm:ss}] Progress: {e.FileName} - {e.ProgressPercentage}% ({processed}/{total})";
+            
+            // Azuriraj log entry (trazi postojeci entry za ovaj fajl i azuriraj ga)
+            UpdateOrAddProgressEntry(e.FileName, message);
+        }
+
+        private void UpdateOrAddProgressEntry(string fileName, string message)
+        {
+            // Trazi postojeci progress entry za ovaj fajl
+            ListViewItem? existingItem = null;
+            foreach (ListViewItem item in listViewLog.Items)
+            {
+                if (item.Text.Contains($"Progress: {fileName}"))
+                {
+                    existingItem = item;
+                    break;
+                }
+            }
+
+            if (existingItem != null)
+            {
+                // Azuriraj postojeci entry
+                existingItem.Text = message;
+            }
+            else
+            {
+                // Dodaj novi entry
+                AddLogEntry(message, Color.DarkOrange);
+            }
+        }
+
+        private string FormatFileSize(long bytes)
+        {
+            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+            double len = bytes;
+            int order = 0;
+            while (len >= 1024 && order < sizes.Length - 1)
+            {
+                order++;
+                len = len / 1024;
+            }
+            return $"{len:0.##} {sizes[order]}";
+        }
+
         private void AddLogEntry(string message, Color color)
         {
-            var item = new ListViewItem(message)
+            try
             {
-                ForeColor = color
-            };
-            
-            listViewLog.Items.Insert(0, item);
+                // DEBUG: Log to Serilog
+                Log.Debug("AddLogEntry called: {Message}, Color: {Color}", message, color.Name);
 
-            // Limit logs
-            if (listViewLog.Items.Count > 100)
+                if (listViewLog == null)
+                {
+                    Log.Error("listViewLog is NULL!");
+                    return;
+                }
+
+                if (InvokeRequired)
+                {
+                    Invoke(new Action(() => AddLogEntry(message, color)));
+                    return;
+                }
+
+                var item = new ListViewItem(message)
+                {
+                    ForeColor = color
+                };
+                
+                listViewLog.Items.Insert(0, item);
+                Log.Debug("Item added to ListView. Total items: {Count}", listViewLog.Items.Count);
+
+                // Limit logs
+                if (listViewLog.Items.Count > 100)
+                {
+                    listViewLog.Items.RemoveAt(listViewLog.Items.Count - 1);
+                }
+            }
+            catch (Exception ex)
             {
-                listViewLog.Items.RemoveAt(listViewLog.Items.Count - 1);
+                Log.Error(ex, "Failed to add log entry: {Message}", message);
+                MessageBox.Show($"Failed to add log entry: {ex.Message}", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -304,6 +418,7 @@ namespace CryptoFileExchange.UI
                     _watcherService.FileDetected -= OnFileDetected;
                     _watcherService.FileEncrypted -= OnFileEncrypted;
                     _watcherService.FileError -= OnFileError;
+                    _watcherService.FileProgress -= OnFileProgress;
                 }
             }
             base.Dispose(disposing);

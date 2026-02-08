@@ -166,6 +166,7 @@ namespace CryptoFileExchange.UI
             listViewLog.TabIndex = 0;
             listViewLog.UseCompatibleStateImageBehavior = false;
             listViewLog.View = View.Details;
+            listViewLog.Columns.Add("Events", 770, HorizontalAlignment.Left);
             // 
             // btnClearLog
             // 
