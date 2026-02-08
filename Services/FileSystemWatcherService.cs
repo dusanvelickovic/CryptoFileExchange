@@ -1,6 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
+using CryptoFileExchange.Algorithms.Hash;
+using CryptoFileExchange.Models;
 using Serilog;
 
 namespace CryptoFileExchange.Services
@@ -10,6 +12,16 @@ namespace CryptoFileExchange.Services
         private FileSystemWatcher _watcher;
         private readonly string _encryptedOutputDirectory;
         private bool _isRunning;
+
+        // Servisi za enkripciju i metadata
+        private readonly EncryptionService _encryptionService;
+        private readonly MetadataService _metadataService;
+        private readonly TigerHash _tigerHash;
+
+        // Kljucevi za enkripciju (u produkciji bi bili konfigurisani spolja)
+        private const string ENIGMA_KEY = "FileWatcherEnigmaKey2024";
+        private const string XXTEA_KEY = "XXTEAAutoEncryptKey123";
+        private const string CFB_KEY = "CFBModeAutoEncrypt456";
 
         // Prag za odluku kada koristiti streaming (50 MB)
         private const long STREAMING_THRESHOLD = 50 * 1024 * 1024;
@@ -34,12 +46,22 @@ namespace CryptoFileExchange.Services
             _encryptedOutputDirectory = encryptedOutputDirectory;
             _isRunning = false;
 
+            // Inicijalizuj servise za enkripciju
+            _encryptionService = new EncryptionService(ENIGMA_KEY, XXTEA_KEY, CFB_KEY);
+            _metadataService = new MetadataService();
+            _tigerHash = new TigerHash();
+
+            // Subscribe na encryption progress
+            _encryptionService.EncryptionProgress += OnEncryptionProgress;
+
             // Kreiraj output direktorijum ako ne postoji
             if (! Directory.Exists(_encryptedOutputDirectory))
             {
                 Directory.CreateDirectory(_encryptedOutputDirectory);
                 Log.Information("Created encrypted output directory: {Directory}", _encryptedOutputDirectory);
             }
+
+            Log.Information("FileSystemWatcherService initialized with encryption algorithms: Enigma -> XXTEA -> CFB");
         }
 
         /// <summary>
@@ -154,40 +176,52 @@ namespace CryptoFileExchange.Services
         /// </summary>
         private async Task EncryptFileAsync(string sourceFilePath)
         {
+            string fileName = Path.GetFileName(sourceFilePath);
+            string encryptedFileName = $"{Path.GetFileNameWithoutExtension(fileName)}.cfex";
+            string encryptedFilePath = Path.Combine(_encryptedOutputDirectory, encryptedFileName);
+
             try
             {
-                string fileName = Path.GetFileName(sourceFilePath);
-                string encryptedFileName = $"{Path.GetFileNameWithoutExtension(fileName)}.cfex";
-                string encryptedFilePath = Path.Combine(_encryptedOutputDirectory, encryptedFileName);
-
                 Log.Information("Starting automatic encryption: {FileName}", fileName);
 
                 // Proveri velicinu fajla
                 FileInfo fileInfo = new FileInfo(sourceFilePath);
                 long fileSize = fileInfo.Length;
 
-                byte[] encryptedData;
+                // === KORAK 1: ENKRIPCIJA ===
+                Log.Information("Encrypting file: {FileName} ({FileSize} bytes)", fileName, fileSize);
 
-                // Koristi streaming za velike fajlove
-                if (fileSize > STREAMING_THRESHOLD)
+                // Koristi EncryptionService za pravu enkripciju
+                var (encryptedData, hash) = await _encryptionService.EncryptFileAsync(sourceFilePath);
+
+                Log.Information("Encryption completed. Hash: {Hash}", hash);
+
+                // === KORAK 2: SACUVAJ ENKRIPTOVANI FAJL SA METADATA HEADER-OM ===
+                // Kreiraj metadata objekat
+                var metadata = new FileMetadata
                 {
-                    Log.Information("Large file detected ({Size:N0} bytes). Using streaming approach.", fileSize);
-                    encryptedData = await EncryptFileStreamingAsync(sourceFilePath, fileSize);
-                }
-                else
-                {
-                    Log.Information("Small file detected ({Size:N0} bytes). Using in-memory approach.", fileSize);
-                    byte[] fileData = await File.ReadAllBytesAsync(sourceFilePath);
-                    encryptedData = SimulateEncryption(fileData);
-                }
+                    OriginalFileName = fileName,
+                    FileSize = fileSize,
+                    CreationDate = DateTime.Now,
+                    EncryptionAlgorithm = "Enigma -> XXTEA -> CFB",
+                    HashAlgorithm = "TigerHash (192-bit)",
+                    FileHash = hash
+                };
 
-                // Sacuvaj sifrovani fajl
-                await File.WriteAllBytesAsync(encryptedFilePath, encryptedData);
+                // Dodaj header i sacuvaj kompletan fajl
+                byte[] fileWithHeader = _metadataService.AddHeaderToFile(metadata, encryptedData);
+                await File.WriteAllBytesAsync(encryptedFilePath, fileWithHeader);
 
-                Log.Information("File encrypted successfully: {OriginalFile} -> {EncryptedFile}", 
-                    fileName, encryptedFileName);
+                Log.Information("Encrypted file with metadata header saved: {EncryptedFilePath}", encryptedFilePath);
 
-                // Notifikuj UI o uspesnom sifrovanju
+                // === KORAK 3: OPCIONO - SACUVAJ I STANDALONE JSON ===
+                string jsonMetadataPath = encryptedFilePath + ".json";
+                string jsonMetadata = _metadataService.SerializeToJson(metadata);
+                await File.WriteAllTextAsync(jsonMetadataPath, jsonMetadata);
+
+                Log.Information("Metadata JSON created: {JsonPath}", jsonMetadataPath);
+
+                // === KORAK 4: NOTIFIKUJ UI ===
                 OnFileEncryptedEvent(new FileEncryptedEventArgs
                 {
                     OriginalFileName = fileName,
@@ -195,10 +229,13 @@ namespace CryptoFileExchange.Services
                     EncryptedFileName = encryptedFileName,
                     EncryptedFilePath = encryptedFilePath,
                     OriginalFileSize = fileSize,
-                    EncryptedFileSize = encryptedData.Length,
+                    EncryptedFileSize = fileWithHeader.Length, // Ukljucuje header
                     EncryptionTime = DateTime.Now,
                     Success = true
                 });
+
+                Log.Information("Encryption successful: {OriginalFile} -> {EncryptedFile} ({OriginalSize} -> {EncryptedSize} bytes)",
+                    fileName, encryptedFileName, fileSize, fileWithHeader.Length);
             }
             catch (Exception ex)
             {
@@ -207,73 +244,12 @@ namespace CryptoFileExchange.Services
                 // Notifikuj UI o gresci
                 OnFileErrorEvent(new FileErrorEventArgs
                 {
-                    FileName = Path.GetFileName(sourceFilePath),
+                    FileName = fileName,
                     FilePath = sourceFilePath,
                     ErrorMessage = ex.Message,
                     ErrorTime = DateTime.Now
                 });
             }
-        }
-
-        /// <summary>
-        /// Sifruje veliki fajl koristeci streaming pristup (za fajlove > 50MB)
-        /// </summary>
-        private async Task<byte[]> EncryptFileStreamingAsync(string sourceFilePath, long fileSize)
-        {
-            using (var memoryStream = new MemoryStream())
-            {
-                using (var fileStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read, BUFFER_SIZE, true))
-                {
-                    byte[] buffer = new byte[BUFFER_SIZE];
-                    long totalBytesRead = 0;
-                    int bytesRead;
-
-                    while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                    {
-                        totalBytesRead += bytesRead;
-
-                        // Sifruj chunk (za sada samo kopira, kasnije integrisi prave algoritme)
-                        byte[] chunk = new byte[bytesRead];
-                        Array.Copy(buffer, 0, chunk, 0, bytesRead);
-                        byte[] encryptedChunk = SimulateEncryption(chunk);
-
-                        // Upisuj sifrovani chunk
-                        await memoryStream.WriteAsync(encryptedChunk, 0, encryptedChunk.Length);
-
-                        // Posalji progress notifikaciju
-                        int progressPercentage = (int)((totalBytesRead * 100) / fileSize);
-                        OnFileProgressEvent(new FileProgressEventArgs
-                        {
-                            FileName = Path.GetFileName(sourceFilePath),
-                            FilePath = sourceFilePath,
-                            BytesProcessed = totalBytesRead,
-                            TotalBytes = fileSize,
-                            ProgressPercentage = progressPercentage
-                        });
-
-                        Log.Debug("Encryption progress: {FileName} - {Progress}% ({Processed}/{Total} bytes)",
-                            Path.GetFileName(sourceFilePath), progressPercentage, totalBytesRead, fileSize);
-                    }
-                }
-
-                return memoryStream.ToArray();
-            }
-        }
-
-        /// <summary>
-        /// Simulira sifrovanje (privremeno dok ne integrises prave algoritme)
-        /// </summary>
-        private byte[] SimulateEncryption(byte[] data)
-        {
-            // PLACEHOLDER - Zameni sa pravim EnigmaEngine, XXTEA, CFB, itd.
-            // Primer integracije (zahteva dodavanje using direktiva i key parametra):
-            // 
-            // var enigma = new EnigmaEngine();
-            // var xxtea = new XXTEAEngine();
-            // var cfb = new CFBMode();
-            // return cfb.Encrypt(xxtea.Encrypt(enigma.Encrypt(data, key), key), key);
-            
-            return data; // Za sada vraca iste podatke
         }
 
         /// <summary>
@@ -337,6 +313,15 @@ namespace CryptoFileExchange.Services
             {
                 Log.Error(restartEx, "Failed to restart FileSystemWatcher");
             }
+        }
+
+        /// <summary>
+        /// Handler za encryption progress iz EncryptionService
+        /// </summary>
+        private void OnEncryptionProgress(object? sender, FileProgressEventArgs e)
+        {
+            // Prosledi progress event UI-ju
+            OnFileProgressEvent(e);
         }
 
         /// <summary>
