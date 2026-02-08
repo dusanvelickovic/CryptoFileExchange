@@ -108,6 +108,7 @@ namespace CryptoFileExchange.UI
                 lblStatus.ForeColor = Color.Green;
                 txtTargetDirectory.Enabled = false;
                 btnBrowseTarget.Enabled = false;
+                btnEncryptFile.Enabled = false; // Disable manual encryption
 
                 AddLogEntry($"FSW Started: {txtTargetDirectory.Text}", Color.Green);
             }
@@ -132,6 +133,7 @@ namespace CryptoFileExchange.UI
                 lblStatus.ForeColor = Color.Gray;
                 txtTargetDirectory.Enabled = true;
                 btnBrowseTarget.Enabled = true;
+                btnEncryptFile.Enabled = true; // Enable manual encryption
 
                 AddLogEntry("FWS Stopped", Color.Orange);
             }
@@ -207,6 +209,60 @@ namespace CryptoFileExchange.UI
         {
             listViewLog.Items.Clear();
             AddLogEntry("Logs cleared", Color.Gray);
+        }
+
+        private async void btnEncryptFile_Click(object sender, EventArgs e)
+        {
+            if (_watcherService == null)
+            {
+                MessageBox.Show("Watcher service is not initialized!", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Title = "Choose file for encryption";
+                dialog.Filter = "All files (*.*)|*.*";
+                dialog.CheckFileExists = true;
+                dialog.Multiselect = false;
+
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        AddLogEntry($"Manual encryption started: {Path.GetFileName(dialog.FileName)}", Color.Blue);
+                        
+                        // Disable button during encryption
+                        btnEncryptFile.Enabled = false;
+                        
+                        bool success = await _watcherService.EncryptFileManuallyAsync(dialog.FileName);
+                        
+                        if (success)
+                        {
+                            AddLogEntry($"Manual encryption completed: {Path.GetFileName(dialog.FileName)}", Color.DarkGreen);
+                            MessageBox.Show($"File successfully encrypted!\n\nOriginal: {Path.GetFileName(dialog.FileName)}\nOutput directory: {_watcherService.EncryptedOutputDirectory}",
+                                "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            AddLogEntry($"Manual encryption failed: {Path.GetFileName(dialog.FileName)}", Color.Red);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLogEntry($"Error: {ex.Message}", Color.Red);
+                        MessageBox.Show($"Encryption error:\n\n{ex.Message}", "Error", 
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        Log.Error(ex, "Manual file encryption failed");
+                    }
+                    finally
+                    {
+                        // Re-enable button
+                        btnEncryptFile.Enabled = true;
+                    }
+                }
+            }
         }
 
         /// <summary>

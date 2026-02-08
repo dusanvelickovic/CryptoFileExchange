@@ -26,6 +26,7 @@ namespace CryptoFileExchange.Tests
             instance.TestFileDetection();
             instance.TestMultipleFiles();
             instance.TestInvalidDirectory();
+            instance.TestManualEncryption();
 
             CleanupTestDirectories();
 
@@ -213,6 +214,65 @@ namespace CryptoFileExchange.Tests
             catch (Exception ex)
             {
                 Fail($"Unexpected exception: {ex.Message}");
+            }
+            Console.WriteLine();
+        }
+
+        private void TestManualEncryption()
+        {
+            Console.WriteLine("Test 5: Manual File Encryption (FSW disabled)");
+            try
+            {
+                var service = new FileSystemWatcherService(_testOutputDir);
+                bool fileDetected = false;
+                bool fileEncrypted = false;
+
+                // Subskrajbuj se na dogadjaje
+                service.FileDetected += (s, e) =>
+                {
+                    fileDetected = true;
+                    Console.WriteLine($"   File detected: {e.FileName}");
+                };
+
+                service.FileEncrypted += (s, e) =>
+                {
+                    fileEncrypted = true;
+                    Console.WriteLine($"   File encrypted: {e.OriginalFileName} -> {e.EncryptedFileName}");
+                };
+
+                // Kreiraj test fajl
+                string testFile = Path.Combine(_testTargetDir, "manual_test.txt");
+                File.WriteAllText(testFile, "Manual encryption test content");
+
+                // FSW je iskljucen - rucno sifrovanje
+                var result = service.EncryptFileManuallyAsync(testFile).Result;
+
+                // Sacekaj malo
+                Thread.Sleep(1000);
+
+                if (result && fileDetected && fileEncrypted)
+                {
+                    Pass("Manual encryption successful (FSW disabled)");
+                    
+                    // Proveri da li je fajl kreiran u output direktorijumu
+                    string expectedOutput = Path.Combine(_testOutputDir, "manual_test.cfex");
+                    if (File.Exists(expectedOutput))
+                    {
+                        Pass($"Encrypted file created: {Path.GetFileName(expectedOutput)}");
+                    }
+                    else
+                    {
+                        Fail("Encrypted file not found in output directory");
+                    }
+                }
+                else
+                {
+                    Fail($"Manual encryption failed. Result: {result}, Detected: {fileDetected}, Encrypted: {fileEncrypted}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Fail($"Exception: {ex.Message}");
             }
             Console.WriteLine();
         }

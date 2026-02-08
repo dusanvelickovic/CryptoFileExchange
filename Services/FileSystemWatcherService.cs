@@ -215,6 +215,43 @@ namespace CryptoFileExchange.Services
         }
 
         /// <summary>
+        /// Rucno sifruje izabrani fajl (koristi se kada je FSW iskljucen)
+        /// </summary>
+        /// <param name="sourceFilePath">Putanja do fajla koji treba sifrovati</param>
+        /// <returns>True ako je sifrovanje uspelo, False ako nije</returns>
+        public async Task<bool> EncryptFileManuallyAsync(string sourceFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(sourceFilePath))
+                throw new ArgumentException("Source file path cannot be null or empty", nameof(sourceFilePath));
+
+            if (!File.Exists(sourceFilePath))
+                throw new FileNotFoundException($"Source file does not exist: {sourceFilePath}");
+
+            try
+            {
+                Log.Information("Manual encryption started: {FilePath}", sourceFilePath);
+
+                // Notifikuj UI o detekciji fajla (rucno izabran)
+                OnFileDetectedEvent(new FileDetectedEventArgs
+                {
+                    FileName = Path.GetFileName(sourceFilePath),
+                    FilePath = sourceFilePath,
+                    DetectedTime = DateTime.Now
+                });
+
+                // Sifruj fajl (koristi istu metodu kao i automatsko sifrovanje)
+                await EncryptFileAsync(sourceFilePath);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Manual encryption failed: {FilePath}", sourceFilePath);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Event handler za greske u FileSystemWatcheru
         /// </summary>
         private void OnWatcherError(object sender, ErrorEventArgs e)

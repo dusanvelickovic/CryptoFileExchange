@@ -19,6 +19,7 @@ namespace CryptoFileExchange.UI
             txtOutputDirectory = new TextBox();
             btnOpenOutput = new Button();
             btnToggleWatcher = new Button();
+            btnEncryptFile = new Button();
             lblStatus = new Label();
             groupBoxLog = new GroupBox();
             listViewLog = new ListView();
@@ -36,6 +37,7 @@ namespace CryptoFileExchange.UI
             groupBoxConfig.Controls.Add(txtOutputDirectory);
             groupBoxConfig.Controls.Add(btnOpenOutput);
             groupBoxConfig.Controls.Add(btnToggleWatcher);
+            groupBoxConfig.Controls.Add(btnEncryptFile);
             groupBoxConfig.Controls.Add(lblStatus);
             groupBoxConfig.Dock = DockStyle.Top;
             groupBoxConfig.Location = new Point(0, 0);
@@ -114,12 +116,25 @@ namespace CryptoFileExchange.UI
             btnToggleWatcher.UseVisualStyleBackColor = false;
             btnToggleWatcher.Click += btnToggleWatcher_Click;
             // 
+            // btnEncryptFile
+            // 
+            btnEncryptFile.BackColor = Color.DodgerBlue;
+            btnEncryptFile.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btnEncryptFile.ForeColor = Color.White;
+            btnEncryptFile.Location = new Point(220, 140);
+            btnEncryptFile.Name = "btnEncryptFile";
+            btnEncryptFile.Size = new Size(150, 35);
+            btnEncryptFile.TabIndex = 8;
+            btnEncryptFile.Text = "Encrypt File...";
+            btnEncryptFile.UseVisualStyleBackColor = false;
+            btnEncryptFile.Click += btnEncryptFile_Click;
+            // 
             // lblStatus
             // 
             lblStatus.AutoSize = true;
             lblStatus.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             lblStatus.ForeColor = Color.Gray;
-            lblStatus.Location = new Point(230, 149);
+            lblStatus.Location = new Point(380, 149);
             lblStatus.Name = "lblStatus";
             lblStatus.Size = new Size(61, 19);
             lblStatus.TabIndex = 7;
@@ -144,14 +159,13 @@ namespace CryptoFileExchange.UI
             listViewLog.Font = new Font("Consolas", 9F);
             listViewLog.FullRowSelect = true;
             listViewLog.GridLines = true;
+            listViewLog.HeaderStyle = ColumnHeaderStyle.None;
             listViewLog.Location = new Point(10, 26);
             listViewLog.Name = "listViewLog";
             listViewLog.Size = new Size(780, 350);
             listViewLog.TabIndex = 0;
-            listViewLog.View = View.Details;
-            listViewLog.HeaderStyle = ColumnHeaderStyle.None;
-            listViewLog.Columns.Add("Events", 770, HorizontalAlignment.Left);
             listViewLog.UseCompatibleStateImageBehavior = false;
+            listViewLog.View = View.Details;
             // 
             // btnClearLog
             // 
@@ -188,6 +202,7 @@ namespace CryptoFileExchange.UI
         private TextBox txtOutputDirectory;
         private Button btnOpenOutput;
         private Button btnToggleWatcher;
+        private Button btnEncryptFile;
         private Label lblStatus;
         
         private GroupBox groupBoxLog;
