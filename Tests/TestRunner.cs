@@ -49,6 +49,11 @@ namespace CryptoFileExchange.Tests
             totalFailed += networkResults.failed;
             Console.WriteLine();
 
+            var encDecResults = EncryptionDecryptionServiceTests.RunAllTests();
+            totalPassed += encDecResults.passed;
+            totalFailed += encDecResults.failed;
+            Console.WriteLine();
+
             PrintGlobalSummary(totalPassed, totalFailed);
         }
 
@@ -58,7 +63,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("            OVERALL TEST SUMMARY            ");
             Console.WriteLine("============================================");
             Console.WriteLine();
-            Console.WriteLine($"  Total Test Suites:  7");
+            Console.WriteLine($"  Total Test Suites:  8");
             Console.WriteLine($"  Total Tests:        {totalPassed + totalFailed}");
             Console.WriteLine($"  Passed:          {totalPassed}");
             Console.WriteLine($"  Failed:          {totalFailed}");
