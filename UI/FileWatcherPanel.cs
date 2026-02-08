@@ -187,8 +187,7 @@ namespace CryptoFileExchange.UI
             }
 
             string message = $"[{e.DetectedTime:HH:mm:ss}] Detected: {e.FileName}";
-            AddLogEntry(message, Color.Blue);
-            Log.Information("File detected: {FileName}", e.FileName);
+            AddLogEntry(message, Color.Blue); // Automatski loguje u Serilog
         }
 
         private void OnFileEncrypted(object? sender, FileEncryptedEventArgs e)
@@ -201,9 +200,7 @@ namespace CryptoFileExchange.UI
 
             string sizeInfo = $"{e.OriginalFileSize:N0} ? {e.EncryptedFileSize:N0} bytes";
             string message = $"[{e.EncryptionTime:HH:mm:ss}] Encrypted: {e.OriginalFileName} ? {e.EncryptedFileName} ({sizeInfo})";
-            AddLogEntry(message, Color.DarkGreen);
-            Log.Information("File encrypted: {OriginalFile} -> {EncryptedFile}", 
-                e.OriginalFileName, e.EncryptedFileName);
+            AddLogEntry(message, Color.DarkGreen); // Automatski loguje u Serilog
         }
 
         private void OnFileError(object? sender, FileErrorEventArgs e)
@@ -215,8 +212,7 @@ namespace CryptoFileExchange.UI
             }
 
             string message = $"[{e.ErrorTime:HH:mm:ss}] ? Error: {e.FileName} - {e.ErrorMessage}";
-            AddLogEntry(message, Color.Red);
-            Log.Error("File encryption error: {FileName} - {Error}", e.FileName, e.ErrorMessage);
+            AddLogEntry(message, Color.Red); // Automatski loguje u Serilog kao Error
 
             MessageBox.Show($"File encription error:\n{e.FileName}\n\n{e.ErrorMessage}", 
                 "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -282,9 +278,6 @@ namespace CryptoFileExchange.UI
         {
             try
             {
-                // DEBUG: Log to Serilog
-                Log.Debug("AddLogEntry called: {Message}, Color: {Color}", message, color.Name);
-
                 if (listViewLog == null)
                 {
                     Log.Error("listViewLog is NULL!");
@@ -297,13 +290,15 @@ namespace CryptoFileExchange.UI
                     return;
                 }
 
+                // Automatski loguj u Serilog na osnovu boje
+                LogToSerilog(message, color);
+
                 var item = new ListViewItem(message)
                 {
                     ForeColor = color
                 };
                 
                 listViewLog.Items.Insert(0, item);
-                Log.Debug("Item added to ListView. Total items: {Count}", listViewLog.Items.Count);
 
                 // Limit logs
                 if (listViewLog.Items.Count > 100)
@@ -316,6 +311,27 @@ namespace CryptoFileExchange.UI
                 Log.Error(ex, "Failed to add log entry: {Message}", message);
                 MessageBox.Show($"Failed to add log entry: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void LogToSerilog(string message, Color color)
+        {
+            // Mapiraj boju na Serilog nivo
+            if (color == Color.Red || color.Name == "Red")
+            {
+                Log.Error(message);
+            }
+            else if (color == Color.Orange || color == Color.DarkOrange || color.Name == "Orange")
+            {
+                Log.Warning(message);
+            }
+            else if (color == Color.Gray || color.Name == "Gray")
+            {
+                Log.Debug(message);
+            }
+            else // Green, Blue, DarkGreen, Purple, itd.
+            {
+                Log.Information(message);
             }
         }
 
@@ -365,10 +381,9 @@ namespace CryptoFileExchange.UI
                     }
                     catch (Exception ex)
                     {
-                        AddLogEntry($"Error: {ex.Message}", Color.Red);
+                        AddLogEntry($"Error: {ex.Message}", Color.Red); // Automatski loguje kao Error
                         MessageBox.Show($"Encryption error:\n\n{ex.Message}", "Error", 
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        Log.Error(ex, "Manual file encryption failed");
                     }
                     finally
                     {
