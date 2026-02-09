@@ -307,6 +307,27 @@ namespace CryptoFileExchange.Services
 
                 return true;
             }
+            catch (SocketException ex)
+            {
+                string errorDetails = ex.SocketErrorCode switch
+                {
+                    SocketError.ConnectionRefused => "Connection refused - Server is not running on target machine or firewall is blocking the port",
+                    SocketError.HostUnreachable => "Host unreachable - Check IP address and network connectivity",
+                    SocketError.TimedOut => "Connection timed out - Server did not respond",
+                    SocketError.NetworkUnreachable => "Network unreachable - Machines are not on the same network",
+                    _ => $"Socket error: {ex.SocketErrorCode}"
+                };
+                
+                Log.Error(ex, "Network error connecting to {Peer}: {ErrorDetails}", peer, errorDetails);
+                OnNetworkError(new NetworkErrorEventArgs
+                {
+                    ErrorMessage = $"Failed to send file: {errorDetails}",
+                    Exception = ex,
+                    ErrorTime = DateTime.Now,
+                    Peer = peer
+                });
+                return false;
+            }
             catch (Exception ex)
             {
                 Log.Error(ex, "Failed to send file to {Peer}", peer);
