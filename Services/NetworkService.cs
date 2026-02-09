@@ -211,52 +211,74 @@ namespace CryptoFileExchange.Services
 
         /// <summary>
         /// Prima FileTransferMessage iz mreznog stream-a
+        /// LENGTH-PREFIXED: Prvo cita 4 bytes (Int32) sa duzinom, zatim tu duzinu podataka
         /// </summary>
         private async Task<FileTransferMessage> ReceiveMessageAsync(NetworkStream stream)
         {
-            // Prvo procitaj celu poruku u memoriju
-            using (var memoryStream = new MemoryStream())
+            // 1. PRVO procitaj duzinu poruke (4 bytes - Int32)
+            byte[] lengthBuffer = new byte[4];
+            int lengthBytesRead = 0;
+            
+            while (lengthBytesRead < 4)
             {
-                byte[] buffer = new byte[BUFFER_SIZE];
-                int bytesRead;
-
-                while ((bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                {
-                    await memoryStream.WriteAsync(buffer, 0, bytesRead);
-
-                    // Proveri da li smo procitali sve (ako stream vise ne salje)
-                    if (!stream.DataAvailable)
-                        break;
-
-                    // Safety check - ne dozvoli preko MAX_MESSAGE_SIZE
-                    if (memoryStream.Length > MAX_MESSAGE_SIZE)
-                    {
-                        throw new InvalidOperationException($"Message size exceeds maximum ({MAX_MESSAGE_SIZE} bytes)");
-                    }
-                }
-
-                byte[] messageBytes = memoryStream.ToArray();
-                Log.Debug("Received {ByteCount} bytes from network", messageBytes.Length);
-
-                // === DEBUG: Ispisi prvih 100 bytes ===
-                if (messageBytes.Length >= 100)
-                {
-                    string preview = BitConverter.ToString(messageBytes, 0, 100).Replace("-", " ");
-                    Log.Debug("First 100 bytes: {Preview}", preview);
-                }
-
-                // Deserijalizuj poruku
-                FileTransferMessage deserializedMessage = FileTransferMessage.FromBytes(messageBytes);
-
-                // === DEBUG: Proveri deserijalizovanu poruku ===
-                Log.Debug("Deserialized message:");
-                Log.Debug("  FileName: {FileName}", deserializedMessage.FileName);
-                Log.Debug("  FileSize: {FileSize}", deserializedMessage.FileSize);
-                Log.Debug("  FileHash: {Hash}", deserializedMessage.FileHash);
-                Log.Debug("  EncryptedData length: {Length}", deserializedMessage.EncryptedData?.Length ?? 0);
-
-                return deserializedMessage;
+                int bytesRead = await stream.ReadAsync(lengthBuffer, lengthBytesRead, 4 - lengthBytesRead);
+                if (bytesRead == 0)
+                    throw new InvalidOperationException("Connection closed while reading message length");
+                lengthBytesRead += bytesRead;
             }
+
+            int expectedLength = BitConverter.ToInt32(lengthBuffer, 0);
+            Log.Debug("Expecting to receive {Length} bytes (read from length prefix)", expectedLength);
+
+            // Safety check
+            if (expectedLength <= 0 || expectedLength > MAX_MESSAGE_SIZE)
+            {
+                throw new InvalidOperationException($"Invalid message length: {expectedLength}");
+            }
+
+            // 2. Sada procitaj tacno toliko bytes koliko ocekujemo
+            byte[] messageBytes = new byte[expectedLength];
+            int totalBytesRead = 0;
+
+            while (totalBytesRead < expectedLength)
+            {
+                int bytesRead = await stream.ReadAsync(messageBytes, totalBytesRead, expectedLength - totalBytesRead);
+                
+                if (bytesRead == 0)
+                {
+                    throw new InvalidOperationException($"Connection closed prematurely. Expected {expectedLength} bytes, received {totalBytesRead} bytes");
+                }
+
+                totalBytesRead += bytesRead;
+                
+                // Progress logging every 10%
+                if (totalBytesRead % (expectedLength / 10 + 1) == 0)
+                {
+                    int progress = (totalBytesRead * 100) / expectedLength;
+                    Log.Debug("Receiving: {Progress}% ({Current}/{Total} bytes)", progress, totalBytesRead, expectedLength);
+                }
+            }
+
+            Log.Debug("Received {ByteCount} bytes from network (complete)", totalBytesRead);
+
+            // === DEBUG: Ispisi prvih 100 bytes ===
+            if (messageBytes.Length >= 100)
+            {
+                string preview = BitConverter.ToString(messageBytes, 0, 100).Replace("-", " ");
+                Log.Debug("First 100 bytes: {Preview}", preview);
+            }
+
+            // 3. Deserijalizuj poruku
+            FileTransferMessage deserializedMessage = FileTransferMessage.FromBytes(messageBytes);
+
+            // === DEBUG: Proveri deserijalizovanu poruku ===
+            Log.Debug("Deserialized message:");
+            Log.Debug("  FileName: {FileName}", deserializedMessage.FileName);
+            Log.Debug("  FileSize: {FileSize}", deserializedMessage.FileSize);
+            Log.Debug("  FileHash: {Hash}", deserializedMessage.FileHash);
+            Log.Debug("  EncryptedData length: {Length}", deserializedMessage.EncryptedData?.Length ?? 0);
+
+            return deserializedMessage;
         }
 
         /// <summary>
@@ -344,14 +366,23 @@ namespace CryptoFileExchange.Services
 
         /// <summary>
         /// Salje FileTransferMessage preko mreznog stream-a
+        /// LENGTH-PREFIXED: Prvo salje 4 bytes (Int32) sa duzinom poruke, zatim poruku
         /// </summary>
         private async Task SendMessageAsync(NetworkStream stream, FileTransferMessage message)
         {
             byte[] messageBytes = message.ToBytes();
+            int messageLength = messageBytes.Length;
+
+            Log.Debug("Sending message length: {Length} bytes", messageLength);
+
+            // 1. PRVO posalji duzinu poruke (4 bytes - Int32)
+            byte[] lengthPrefix = BitConverter.GetBytes(messageLength);
+            await stream.WriteAsync(lengthPrefix, 0, lengthPrefix.Length);
+
             long totalBytes = messageBytes.Length;
             long bytesSent = 0;
 
-            Log.Debug("Sending {TotalBytes} bytes", totalBytes);
+            Log.Debug("Sending {TotalBytes} bytes of message data", totalBytes);
 
             // === DEBUG: Ispisi prvih 100 bytes ===
             if (messageBytes.Length >= 100)
@@ -360,7 +391,7 @@ namespace CryptoFileExchange.Services
                 Log.Debug("First 100 bytes to send: {Preview}", preview);
             }
 
-            // Salji u chunk-ovima sa progress-om
+            // 2. Zatim salji poruku u chunk-ovima sa progress-om
             int offset = 0;
             while (offset < messageBytes.Length)
             {
@@ -382,7 +413,7 @@ namespace CryptoFileExchange.Services
             }
 
             await stream.FlushAsync();
-            Log.Debug("Message sent successfully");
+            Log.Debug("Message sent successfully (length-prefixed)");
         }
 
         /// <summary>
