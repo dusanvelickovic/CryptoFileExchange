@@ -68,12 +68,10 @@ namespace CryptoFileExchange.UI
         {
             if (_isServerMode)
             {
-                // Stop Server
                 StopServer();
             }
             else
             {
-                // Start Server
                 await StartServerAsync();
             }
         }
@@ -84,13 +82,10 @@ namespace CryptoFileExchange.UI
             {
                 if (!int.TryParse(txtPort.Text, out int port) || port <= 0 || port > 65535)
                 {
-                    AddLogEntry($"Invalid port number: {txtPort.Text}", Color.Red);
                     MessageBox.Show("Please enter a valid port number (1-65535)", "Invalid Port", 
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-
-                AddLogEntry($"Starting server on port {port}...", Color.Blue);
 
                 await _networkService!.StartListeningAsync(port);
 
@@ -100,13 +95,11 @@ namespace CryptoFileExchange.UI
                 txtPort.Enabled = false;
                 grpClient.Enabled = false;
 
-                AddLogEntry($"Server started successfully on port {port}", Color.Green);
-                Log.Information("File Exchange Server started on port {Port}", port);
+                AddLogEntry($"Server started on port {port}", Color.Green);
             }
             catch (Exception ex)
             {
                 AddLogEntry($"Failed to start server: {ex.Message}", Color.Red);
-                Log.Error(ex, "Failed to start File Exchange server");
                 MessageBox.Show($"Failed to start server: {ex.Message}", "Server Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -125,12 +118,10 @@ namespace CryptoFileExchange.UI
                 grpClient.Enabled = true;
 
                 AddLogEntry("Server stopped", Color.Orange);
-                Log.Information("File Exchange Server stopped");
             }
             catch (Exception ex)
             {
                 AddLogEntry($"Error stopping server: {ex.Message}", Color.Red);
-                Log.Error(ex, "Error stopping File Exchange server");
             }
         }
 
@@ -283,7 +274,7 @@ namespace CryptoFileExchange.UI
                     return;
                 }
 
-                // Dekriptuj automatski (po zaht?vu)
+                // Dekriptuj automatski (po zahtevu)
                 AddLogEntry("Verifying hash and decrypting file...", Color.Blue);
 
                 var (decryptedData, hashValid) = await _decryptionService!.DecryptFileAsync(
