@@ -28,79 +28,73 @@
         /// </summary>
         private void InitializeComponent()
         {
-            tabControl = new System.Windows.Forms.TabControl();
-            tabFileWatcher = new System.Windows.Forms.TabPage();
-            tabFileExchange = new System.Windows.Forms.TabPage();
-            fileWatcherPanel = new UI.FileWatcherPanel();
-            fileExchangePanel = new UI.FileExchangePanel();
+            tabControl = new TabControl();
+            tabFileWatcher = new TabPage();
+            fileWatcherPanel = new CryptoFileExchange.UI.FileWatcherPanel();
+            tabFileExchange = new TabPage();
+            fileExchangePanel = new CryptoFileExchange.UI.FileExchangePanel();
             tabControl.SuspendLayout();
             tabFileWatcher.SuspendLayout();
             tabFileExchange.SuspendLayout();
             SuspendLayout();
-
             // 
             // tabControl
             // 
             tabControl.Controls.Add(tabFileWatcher);
             tabControl.Controls.Add(tabFileExchange);
-            tabControl.Dock = System.Windows.Forms.DockStyle.Fill;
-            tabControl.Location = new System.Drawing.Point(0, 0);
+            tabControl.Dock = DockStyle.Fill;
+            tabControl.Location = new Point(0, 0);
             tabControl.Name = "tabControl";
             tabControl.SelectedIndex = 0;
-            tabControl.Size = new System.Drawing.Size(900, 650);
+            tabControl.Size = new Size(900, 650);
             tabControl.TabIndex = 0;
-
             // 
             // tabFileWatcher
             // 
             tabFileWatcher.Controls.Add(fileWatcherPanel);
-            tabFileWatcher.Location = new System.Drawing.Point(4, 24);
+            tabFileWatcher.Location = new Point(4, 24);
             tabFileWatcher.Name = "tabFileWatcher";
-            tabFileWatcher.Padding = new System.Windows.Forms.Padding(3);
-            tabFileWatcher.Size = new System.Drawing.Size(892, 622);
+            tabFileWatcher.Padding = new Padding(3);
+            tabFileWatcher.Size = new Size(892, 622);
             tabFileWatcher.TabIndex = 0;
             tabFileWatcher.Text = "Auto Encryption";
             tabFileWatcher.UseVisualStyleBackColor = true;
-
+            // 
+            // fileWatcherPanel
+            // 
+            fileWatcherPanel.Dock = DockStyle.Fill;
+            fileWatcherPanel.Location = new Point(3, 3);
+            fileWatcherPanel.Name = "fileWatcherPanel";
+            fileWatcherPanel.Size = new Size(886, 616);
+            fileWatcherPanel.TabIndex = 0;
             // 
             // tabFileExchange
             // 
             tabFileExchange.Controls.Add(fileExchangePanel);
-            tabFileExchange.Location = new System.Drawing.Point(4, 24);
+            tabFileExchange.Location = new Point(4, 24);
             tabFileExchange.Name = "tabFileExchange";
-            tabFileExchange.Padding = new System.Windows.Forms.Padding(3);
-            tabFileExchange.Size = new System.Drawing.Size(892, 622);
+            tabFileExchange.Padding = new Padding(3);
+            tabFileExchange.Size = new Size(892, 622);
             tabFileExchange.TabIndex = 1;
             tabFileExchange.Text = "File Exchange (P2P)";
             tabFileExchange.UseVisualStyleBackColor = true;
-
-            // 
-            // fileWatcherPanel
-            // 
-            fileWatcherPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            fileWatcherPanel.Location = new System.Drawing.Point(3, 3);
-            fileWatcherPanel.Name = "fileWatcherPanel";
-            fileWatcherPanel.Size = new System.Drawing.Size(886, 616);
-            fileWatcherPanel.TabIndex = 0;
-
             // 
             // fileExchangePanel
             // 
-            fileExchangePanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            fileExchangePanel.Location = new System.Drawing.Point(3, 3);
+            fileExchangePanel.Dock = DockStyle.Fill;
+            fileExchangePanel.Location = new Point(3, 3);
             fileExchangePanel.Name = "fileExchangePanel";
-            fileExchangePanel.Size = new System.Drawing.Size(886, 616);
+            fileExchangePanel.Size = new Size(886, 616);
             fileExchangePanel.TabIndex = 0;
-
             // 
             // Form1
             // 
-            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(900, 650);
+            AutoScaleDimensions = new SizeF(7F, 15F);
+            AutoScaleMode = AutoScaleMode.Font;
+            ClientSize = new Size(900, 650);
             Controls.Add(tabControl);
             Name = "Form1";
-            Text = "CryptoFileExchange - Auto Encryption && P2P File Transfer";
+            Text = "Crypto File Exchange";
             tabControl.ResumeLayout(false);
             tabFileWatcher.ResumeLayout(false);
             tabFileExchange.ResumeLayout(false);

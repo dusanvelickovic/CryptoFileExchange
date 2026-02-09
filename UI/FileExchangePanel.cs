@@ -176,6 +176,10 @@ namespace CryptoFileExchange.UI
                 AddLogEntry($"File encrypted successfully. Hash: {hash.Substring(0, 16)}...", Color.Green);
                 Log.Information("File encrypted. Hash: {Hash}", hash);
 
+                // === DEBUG: Proveri enkriptovane podatke ===
+                Log.Debug("Encrypted data length: {Length} bytes", encryptedData.Length);
+                Log.Debug("Hash: {Hash}", hash);
+
                 // Kreiraj FileTransferMessage
                 var message = new FileTransferMessage
                 {
@@ -184,6 +188,13 @@ namespace CryptoFileExchange.UI
                     FileHash = hash,
                     EncryptedData = encryptedData
                 };
+
+                // === DEBUG: Proveri message ===
+                Log.Debug("FileTransferMessage created:");
+                Log.Debug("  FileName: {FileName}", message.FileName);
+                Log.Debug("  FileSize: {FileSize}", message.FileSize);
+                Log.Debug("  FileHash: {Hash}", message.FileHash);
+                Log.Debug("  EncryptedData length: {Length}", message.EncryptedData.Length);
 
                 AddLogEntry($"Sending file to {ipAddress}:{recipientPort}...", Color.Blue);
 
@@ -256,6 +267,21 @@ namespace CryptoFileExchange.UI
             {
                 AddLogEntry($"File received: {e.Message.FileName} ({e.Message.FileSize} bytes)", Color.Blue);
                 Log.Information("File received from {Sender}: {FileName}", e.Sender, e.Message.FileName);
+
+                // === DEBUG: Proveri podatke ===
+                Log.Debug("FileReceived event data:");
+                Log.Debug("  FileName: {FileName}", e.Message.FileName);
+                Log.Debug("  FileSize: {FileSize}", e.Message.FileSize);
+                Log.Debug("  FileHash: {Hash}", e.Message.FileHash);
+                Log.Debug("  EncryptedData length: {Length}", e.Message.EncryptedData?.Length ?? 0);
+
+                if (e.Message.EncryptedData == null || e.Message.EncryptedData.Length == 0)
+                {
+                    AddLogEntry("ERROR: Received empty encrypted data!", Color.Red);
+                    Log.Error("EncryptedData is null or empty");
+                    MessageBox.Show("Received file has no data!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
 
                 // Dekriptuj automatski (po zaht?vu)
                 AddLogEntry("Verifying hash and decrypting file...", Color.Blue);

@@ -238,8 +238,24 @@ namespace CryptoFileExchange.Services
                 byte[] messageBytes = memoryStream.ToArray();
                 Log.Debug("Received {ByteCount} bytes from network", messageBytes.Length);
 
+                // === DEBUG: Ispisi prvih 100 bytes ===
+                if (messageBytes.Length >= 100)
+                {
+                    string preview = BitConverter.ToString(messageBytes, 0, 100).Replace("-", " ");
+                    Log.Debug("First 100 bytes: {Preview}", preview);
+                }
+
                 // Deserijalizuj poruku
-                return FileTransferMessage.FromBytes(messageBytes);
+                FileTransferMessage deserializedMessage = FileTransferMessage.FromBytes(messageBytes);
+
+                // === DEBUG: Proveri deserijalizovanu poruku ===
+                Log.Debug("Deserialized message:");
+                Log.Debug("  FileName: {FileName}", deserializedMessage.FileName);
+                Log.Debug("  FileSize: {FileSize}", deserializedMessage.FileSize);
+                Log.Debug("  FileHash: {Hash}", deserializedMessage.FileHash);
+                Log.Debug("  EncryptedData length: {Length}", deserializedMessage.EncryptedData?.Length ?? 0);
+
+                return deserializedMessage;
             }
         }
 
@@ -315,6 +331,13 @@ namespace CryptoFileExchange.Services
             long bytesSent = 0;
 
             Log.Debug("Sending {TotalBytes} bytes", totalBytes);
+
+            // === DEBUG: Ispisi prvih 100 bytes ===
+            if (messageBytes.Length >= 100)
+            {
+                string preview = BitConverter.ToString(messageBytes, 0, 100).Replace("-", " ");
+                Log.Debug("First 100 bytes to send: {Preview}", preview);
+            }
 
             // Salji u chunk-ovima sa progress-om
             int offset = 0;

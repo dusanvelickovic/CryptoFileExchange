@@ -79,7 +79,14 @@ namespace CryptoFileExchange.Models
 
                 // Procitaj FILENAME
                 int fileNameLength = reader.ReadInt32();
-                byte[] fileNameBytes = reader.ReadBytes(fileNameLength);
+                byte[] fileNameBytes = new byte[fileNameLength];
+                int fnRead = 0;
+                while (fnRead < fileNameLength)
+                {
+                    int bytesRead = reader.Read(fileNameBytes, fnRead, fileNameLength - fnRead);
+                    if (bytesRead == 0) throw new InvalidDataException("Stream ended while reading filename");
+                    fnRead += bytesRead;
+                }
                 string fileName = Encoding.UTF8.GetString(fileNameBytes);
 
                 // Procitaj FILE_SIZE
@@ -87,12 +94,57 @@ namespace CryptoFileExchange.Models
 
                 // Procitaj HASH
                 int hashLength = reader.ReadInt32();
-                byte[] hashBytes = reader.ReadBytes(hashLength);
+                byte[] hashBytes = new byte[hashLength];
+                int hashRead = 0;
+                while (hashRead < hashLength)
+                {
+                    int bytesRead = reader.Read(hashBytes, hashRead, hashLength - hashRead);
+                    if (bytesRead == 0) throw new InvalidDataException("Stream ended while reading hash");
+                    hashRead += bytesRead;
+                }
                 string fileHash = Encoding.UTF8.GetString(hashBytes);
 
                 // Procitaj ENCRYPTED_DATA
                 long dataLength = reader.ReadInt64();
-                byte[] encryptedData = reader.ReadBytes((int)dataLength);
+                
+                // Safety check
+                if (dataLength <= 0)
+                {
+                    throw new InvalidDataException($"Invalid data length: {dataLength}");
+                }
+                
+                if (dataLength > int.MaxValue)
+                {
+                    throw new InvalidDataException($"Data length too large: {dataLength}");
+                }
+                
+                // Read encrypted data in loop to ensure all bytes are read
+                byte[] encryptedData = new byte[dataLength];
+                int totalRead = 0;
+                
+                while (totalRead < dataLength)
+                {
+                    int bytesRead = reader.Read(encryptedData, totalRead, (int)(dataLength - totalRead));
+                    
+                    if (bytesRead == 0)
+                    {
+                        throw new InvalidDataException($"Stream ended prematurely. Expected {dataLength} bytes, but only read {totalRead} bytes");
+                    }
+                    
+                    totalRead += bytesRead;
+                }
+                
+                // Verify we read all bytes
+                if (totalRead != dataLength)
+                {
+                    throw new InvalidDataException($"Expected to read {dataLength} bytes, but only read {totalRead} bytes");
+                }
+                
+                // XXTEA requirement: length must be divisible by 4
+                if (encryptedData.Length % 4 != 0)
+                {
+                    throw new InvalidDataException($"EncryptedData length ({encryptedData.Length}) must be divisible by 4 for XXTEA decryption");
+                }
 
                 return new FileTransferMessage
                 {

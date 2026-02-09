@@ -54,6 +54,11 @@ namespace CryptoFileExchange.Tests
             totalFailed += encDecResults.failed;
             Console.WriteLine();
 
+            var integrationResults = FileExchangeIntegrationTests.RunAllTests();
+            totalPassed += integrationResults.passed;
+            totalFailed += integrationResults.failed;
+            Console.WriteLine();
+
             PrintGlobalSummary(totalPassed, totalFailed);
         }
 
@@ -63,7 +68,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("            OVERALL TEST SUMMARY            ");
             Console.WriteLine("============================================");
             Console.WriteLine();
-            Console.WriteLine($"  Total Test Suites:  8");
+            Console.WriteLine($"  Total Test Suites:  9");
             Console.WriteLine($"  Total Tests:        {totalPassed + totalFailed}");
             Console.WriteLine($"  Passed:          {totalPassed}");
             Console.WriteLine($"  Failed:          {totalFailed}");
