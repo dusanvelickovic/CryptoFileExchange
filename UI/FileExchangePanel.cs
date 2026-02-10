@@ -99,7 +99,7 @@ namespace CryptoFileExchange.UI
             }
             catch (Exception ex)
             {
-                AddLogEntry($"Failed to start server: {ex.Message}", Color.Red);
+                AddLogEntry($"Failed to start server: {ex.Message}", Color.Red, ex);
                 MessageBox.Show($"Failed to start server: {ex.Message}", "Server Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -121,7 +121,7 @@ namespace CryptoFileExchange.UI
             }
             catch (Exception ex)
             {
-                AddLogEntry($"Error stopping server: {ex.Message}", Color.Red);
+                AddLogEntry($"Error stopping server: {ex.Message}", Color.Red, ex);
             }
         }
 
@@ -194,7 +194,7 @@ namespace CryptoFileExchange.UI
                     FileSize = encryptedData.Length,
                     FileHash = hash,
                     EncryptedData = encryptedData,
-                    Metadata = metadata  // Include metadata
+                    Metadata = metadata
                 };
 
                 // === DEBUG: Proveri message ===
@@ -225,8 +225,7 @@ namespace CryptoFileExchange.UI
             }
             catch (Exception ex)
             {
-                AddLogEntry($"Error sending file: {ex.Message}", Color.Red);
-                Log.Error(ex, "Error during file send operation");
+                AddLogEntry($"Error sending file: {ex.Message}", Color.Red, ex);
                 MessageBox.Show($"Error sending file: {ex.Message}", "Send Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -368,8 +367,7 @@ namespace CryptoFileExchange.UI
             }
             catch (Exception ex)
             {
-                AddLogEntry($"Error processing received file: {ex.Message}", Color.Red);
-                Log.Error(ex, "Error processing received file");
+                AddLogEntry($"Error processing received file: {ex.Message}", Color.Red, ex);
                 MessageBox.Show($"Error processing received file: {ex.Message}",
                     "Processing Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -442,7 +440,7 @@ namespace CryptoFileExchange.UI
 
         #region Logging Methods
 
-        private void AddLogEntry(string message, Color color)
+        private void AddLogEntry(string message, Color color, Exception? ex = null)
         {
             var item = new ListViewItem(message)
             {
@@ -451,8 +449,8 @@ namespace CryptoFileExchange.UI
             listViewLog.Items.Add(item);
             listViewLog.EnsureVisible(listViewLog.Items.Count - 1);
 
-            // Log to Serilog
-            LogToSerilog(message, color);
+            // Log to Serilog (with exception if provided)
+            LogToSerilog(message, color, ex);
         }
 
         private void UpdateOrAddProgressEntry(string message, Color color)
@@ -475,23 +473,35 @@ namespace CryptoFileExchange.UI
             AddLogEntry(message, color);
         }
 
-        private void LogToSerilog(string message, Color color)
+        private void LogToSerilog(string message, Color color, Exception? ex = null)
         {
             if (color == Color.Red)
             {
-                Log.Error(message);
+                if (ex != null)
+                    Log.Error(ex, message);
+                else
+                    Log.Error(message);
             }
             else if (color == Color.Orange)
             {
-                Log.Warning(message);
+                if (ex != null)
+                    Log.Warning(ex, message);
+                else
+                    Log.Warning(message);
             }
             else if (color == Color.Green || color == Color.Blue)
             {
-                Log.Information(message);
+                if (ex != null)
+                    Log.Information(ex, message);
+                else
+                    Log.Information(message);
             }
             else
             {
-                Log.Debug(message);
+                if (ex != null)
+                    Log.Debug(ex, message);
+                else
+                    Log.Debug(message);
             }
         }
 

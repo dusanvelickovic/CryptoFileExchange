@@ -76,7 +76,7 @@
             tabFileExchange.Padding = new Padding(3);
             tabFileExchange.Size = new Size(892, 622);
             tabFileExchange.TabIndex = 1;
-            tabFileExchange.Text = "File Exchange (P2P)";
+            tabFileExchange.Text = "File Exchange";
             tabFileExchange.UseVisualStyleBackColor = true;
             // 
             // fileExchangePanel

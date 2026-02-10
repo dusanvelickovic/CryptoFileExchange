@@ -35,7 +35,7 @@ namespace CryptoFileExchange.Services
         }
 
         /// <summary>
-        /// Kreira kompletan fajl sa header-om i šifrovanim podacima
+        /// Kreira kompletan fajl sa header-om i sifrovanim podacima
         /// Struktura: [MAGIC(4)] [VERSION(4)] [HEADER_SIZE(4)] [JSON_HEADER] [ENCRYPTED_DATA]
         /// </summary>
         public byte[] AddHeaderToFile(FileMetadata metadata, byte[] encryptedData)
@@ -74,7 +74,7 @@ namespace CryptoFileExchange.Services
         }
 
         /// <summary>
-        /// Čita header iz fajla i vraća metadata i šifrovane podatke
+        /// Cita header iz fajla i vraca metadata i sifrovane podatke
         /// </summary>
         public (FileMetadata metadata, byte[] encryptedData) ReadHeaderFromFile(byte[] fileData)
         {
@@ -91,24 +91,24 @@ namespace CryptoFileExchange.Services
                 if (magic != HEADER_MAGIC)
                     throw new InvalidDataException($"Invalid file format. Expected '{HEADER_MAGIC}', got '{magic}'");
 
-                // Čitaj verziju
+                // Citaj verziju
                 int version = reader.ReadInt32();
                 if (version != HEADER_VERSION)
                     throw new InvalidDataException($"Unsupported version {version}. Expected {HEADER_VERSION}");
 
-                // Čitaj dužinu header-a
+                // Citaj duzinu header-a
                 int headerSize = reader.ReadInt32();
                 if (headerSize <= 0 || headerSize > fileData.Length)
                     throw new InvalidDataException($"Invalid header size: {headerSize}");
 
-                // Čitaj JSON metadata
+                // Citaj JSON metadata
                 byte[] jsonBytes = reader.ReadBytes(headerSize);
                 string jsonMetadata = Encoding.UTF8.GetString(jsonBytes);
 
                 // Deserijalizuj metadata
                 FileMetadata metadata = DeserializeFromJson(jsonMetadata);
 
-                // Čitaj preostale podatke (šifrovani sadržaj)
+                // Citaj preostale podatke (sifrovani sadrzaj)
                 int remainingBytes = (int)(ms.Length - ms.Position);
                 byte[] encryptedData = reader.ReadBytes(remainingBytes);
 
@@ -138,7 +138,7 @@ namespace CryptoFileExchange.Services
         }
 
         /// <summary>
-        /// Učitava fajl sa diska i čita header
+        /// Ucitava fajl sa diska i cita header
         /// </summary>
         public (FileMetadata metadata, byte[] encryptedData) ReadHeaderFromFilePath(string filePath)
         {
@@ -207,7 +207,7 @@ namespace CryptoFileExchange.Services
         }
 
         /// <summary>
-        /// Formatira veličinu fajla u čitljiv oblik
+        /// Formatira velicinu fajla u citljiv oblik
         /// </summary>
         private string FormatFileSize(long bytes)
         {

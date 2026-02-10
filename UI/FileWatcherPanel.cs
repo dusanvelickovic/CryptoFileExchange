@@ -72,7 +72,7 @@ namespace CryptoFileExchange.UI
             {
                 MessageBox.Show($"Service initialization error: {ex.Message}", 
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log.Error(ex, "Failed to initialize FileWatcherService");
+                AddLogEntry($"Failed to initialize FileWatcherService: {ex.Message}", Color.Red, ex);
             }
         }
 
@@ -147,9 +147,9 @@ namespace CryptoFileExchange.UI
             }
             catch (Exception ex)
             {
+                AddLogEntry($"Failed to start FWS: {ex.Message}", Color.Red, ex);
                 MessageBox.Show($"Failed to start FWS: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log.Error(ex, "Failed to start file watcher");
             }
         }
 
@@ -172,9 +172,9 @@ namespace CryptoFileExchange.UI
             }
             catch (Exception ex)
             {
+                AddLogEntry($"Failed to stop FSW: {ex.Message}", Color.Red, ex);
                 MessageBox.Show($"Failed to stop FSW: {ex.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Log.Error(ex, "Failed to stop file watcher");
             }
         }
 
@@ -274,7 +274,7 @@ namespace CryptoFileExchange.UI
             return $"{len:0.##} {sizes[order]}";
         }
 
-        private void AddLogEntry(string message, Color color)
+        private void AddLogEntry(string message, Color color, Exception? ex = null)
         {
             try
             {
@@ -286,12 +286,12 @@ namespace CryptoFileExchange.UI
 
                 if (InvokeRequired)
                 {
-                    Invoke(new Action(() => AddLogEntry(message, color)));
+                    Invoke(new Action(() => AddLogEntry(message, color, ex)));
                     return;
                 }
 
-                // Automatski loguj u Serilog na osnovu boje
-                LogToSerilog(message, color);
+                // Automatically log to Serilog based on color (with exception if provided)
+                LogToSerilog(message, color, ex);
 
                 var item = new ListViewItem(message)
                 {
@@ -306,32 +306,44 @@ namespace CryptoFileExchange.UI
                     listViewLog.Items.RemoveAt(listViewLog.Items.Count - 1);
                 }
             }
-            catch (Exception ex)
+            catch (Exception logEx)
             {
-                Log.Error(ex, "Failed to add log entry: {Message}", message);
-                MessageBox.Show($"Failed to add log entry: {ex.Message}", "Error", 
+                Log.Error(logEx, "Failed to add log entry: {Message}", message);
+                MessageBox.Show($"Failed to add log entry: {logEx.Message}", "Error", 
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void LogToSerilog(string message, Color color)
+        private void LogToSerilog(string message, Color color, Exception? ex = null)
         {
-            // Mapiraj boju na Serilog nivo
+            // Map color to Serilog level
             if (color == Color.Red || color.Name == "Red")
             {
-                Log.Error(message);
+                if (ex != null)
+                    Log.Error(ex, message);
+                else
+                    Log.Error(message);
             }
             else if (color == Color.Orange || color == Color.DarkOrange || color.Name == "Orange")
             {
-                Log.Warning(message);
+                if (ex != null)
+                    Log.Warning(ex, message);
+                else
+                    Log.Warning(message);
             }
             else if (color == Color.Gray || color.Name == "Gray")
             {
-                Log.Debug(message);
+                if (ex != null)
+                    Log.Debug(ex, message);
+                else
+                    Log.Debug(message);
             }
-            else // Green, Blue, DarkGreen, Purple, itd.
+            else // Green, Blue, DarkGreen, Purple, etc.
             {
-                Log.Information(message);
+                if (ex != null)
+                    Log.Information(ex, message);
+                else
+                    Log.Information(message);
             }
         }
 
@@ -381,7 +393,7 @@ namespace CryptoFileExchange.UI
                     }
                     catch (Exception ex)
                     {
-                        AddLogEntry($"Error: {ex.Message}", Color.Red); // Automatski loguje kao Error
+                        AddLogEntry($"Error: {ex.Message}", Color.Red, ex);
                         MessageBox.Show($"Encryption error:\n\n{ex.Message}", "Error", 
                             MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
