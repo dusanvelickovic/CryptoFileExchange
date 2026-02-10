@@ -1,11 +1,12 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Text.Json;
 
 namespace CryptoFileExchange.Models
 {
     /// <summary>
-    /// Poruka za prenos sifrovanog fajla preko mreze
+    /// Poruka za prenos sifrovanog fajla preko mreze (CFTP Protocol)
     /// </summary>
     public class FileTransferMessage
     {
@@ -17,6 +18,11 @@ namespace CryptoFileExchange.Models
         public long FileSize { get; set; }
         public required string FileHash { get; set; }
         public required byte[] EncryptedData { get; set; }
+        
+        /// <summary>
+        /// Metadata o originalnom fajlu (pre enkripcije)
+        /// </summary>
+        public FileMetadata? Metadata { get; set; }
 
         /// <summary>
         /// Serijalizuje poruku u binarni format za slanje preko mreze
@@ -49,6 +55,19 @@ namespace CryptoFileExchange.Models
                 // DATA_LENGTH (8 bytes, long) + ENCRYPTED_DATA
                 writer.Write((long)EncryptedData.Length);
                 writer.Write(EncryptedData);
+
+                // METADATA (optional) - JSON serialized
+                if (Metadata != null)
+                {
+                    string metadataJson = JsonSerializer.Serialize(Metadata);
+                    byte[] metadataBytes = Encoding.UTF8.GetBytes(metadataJson);
+                    writer.Write(metadataBytes.Length);  // METADATA_LENGTH (4 bytes)
+                    writer.Write(metadataBytes);         // METADATA_JSON
+                }
+                else
+                {
+                    writer.Write(0);  // No metadata (length = 0)
+                }
 
                 return memoryStream.ToArray();
             }
@@ -146,12 +165,37 @@ namespace CryptoFileExchange.Models
                     throw new InvalidDataException($"EncryptedData length ({encryptedData.Length}) must be divisible by 4 for XXTEA decryption");
                 }
 
+                // METADATA (optional) - JSON deserialization
+                FileMetadata? metadata = null;
+                
+                if (reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    int metadataLength = reader.ReadInt32();
+                    
+                    if (metadataLength > 0)
+                    {
+                        byte[] metadataBytes = new byte[metadataLength];
+                        int metadataRead = 0;
+                        
+                        while (metadataRead < metadataLength)
+                        {
+                            int bytesRead = reader.Read(metadataBytes, metadataRead, metadataLength - metadataRead);
+                            if (bytesRead == 0) throw new InvalidDataException("Stream ended while reading metadata");
+                            metadataRead += bytesRead;
+                        }
+                        
+                        string metadataJson = Encoding.UTF8.GetString(metadataBytes);
+                        metadata = JsonSerializer.Deserialize<FileMetadata>(metadataJson);
+                    }
+                }
+
                 return new FileTransferMessage
                 {
                     FileName = fileName,
                     FileSize = fileSize,
                     FileHash = fileHash,
-                    EncryptedData = encryptedData
+                    EncryptedData = encryptedData,
+                    Metadata = metadata
                 };
             }
         }

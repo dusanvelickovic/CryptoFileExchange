@@ -198,8 +198,8 @@ namespace CryptoFileExchange.UI
                 return;
             }
 
-            string sizeInfo = $"{e.OriginalFileSize:N0} ? {e.EncryptedFileSize:N0} bytes";
-            string message = $"[{e.EncryptionTime:HH:mm:ss}] Encrypted: {e.OriginalFileName} ? {e.EncryptedFileName} ({sizeInfo})";
+            string sizeInfo = $"{e.OriginalFileSize:N0} -> {e.EncryptedFileSize:N0} bytes";
+            string message = $"[{e.EncryptionTime:HH:mm:ss}] Encrypted: {e.OriginalFileName} -> {e.EncryptedFileName} ({sizeInfo})";
             AddLogEntry(message, Color.DarkGreen); // Automatski loguje u Serilog
         }
 
@@ -211,7 +211,7 @@ namespace CryptoFileExchange.UI
                 return;
             }
 
-            string message = $"[{e.ErrorTime:HH:mm:ss}] ? Error: {e.FileName} - {e.ErrorMessage}";
+            string message = $"[{e.ErrorTime:HH:mm:ss}] -> Error: {e.FileName} - {e.ErrorMessage}";
             AddLogEntry(message, Color.Red); // Automatski loguje u Serilog kao Error
 
             MessageBox.Show($"File encription error:\n{e.FileName}\n\n{e.ErrorMessage}", 

@@ -130,7 +130,7 @@ namespace CryptoFileExchange.Services
             {
                 OriginalFileName = originalFileName,
                 FileSize = fileSize,
-                CreationDate = DateTime.Now,
+                CreationTime = DateTime.Now,
                 EncryptionAlgorithm = encryptionAlgorithm,
                 HashAlgorithm = hashAlgorithm,
                 FileHash = fileHash
@@ -198,7 +198,7 @@ namespace CryptoFileExchange.Services
             sb.AppendLine("=== File Metadata ===");
             sb.AppendLine($"Original File Name: {metadata.OriginalFileName}");
             sb.AppendLine($"File Size: {FormatFileSize(metadata.FileSize)}");
-            sb.AppendLine($"Creation Date: {metadata.CreationDate:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine($"Creation Time: {metadata.CreationTime:yyyy-MM-dd HH:mm:ss}");
             sb.AppendLine($"Encryption Algorithm: {metadata.EncryptionAlgorithm}");
             sb.AppendLine($"Hash Algorithm: {metadata.HashAlgorithm}");
             sb.AppendLine($"File Hash: {metadata.FileHash}");

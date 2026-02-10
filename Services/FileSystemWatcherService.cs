@@ -202,7 +202,7 @@ namespace CryptoFileExchange.Services
                 {
                     OriginalFileName = fileName,
                     FileSize = fileSize,
-                    CreationDate = DateTime.Now,
+                    CreationTime = DateTime.Now,
                     EncryptionAlgorithm = "Enigma -> XXTEA -> CFB",
                     HashAlgorithm = "TigerHash (192-bit)",
                     FileHash = hash

@@ -38,7 +38,7 @@ namespace CryptoFileExchange.Tests
                 {
                     OriginalFileName = "test.txt",
                     FileSize = 1024,
-                    CreationDate = DateTime.Now,
+                    CreationTime = DateTime.Now,
                     EncryptionAlgorithm = "XXTEA",
                     HashAlgorithm = "TigerHash",
                     FileHash = "abc123def456"
@@ -208,12 +208,12 @@ namespace CryptoFileExchange.Tests
                 if (metadata != null &&
                     metadata.OriginalFileName == "myfile.bin" &&
                     metadata.FileSize == 4096 &&
-                    metadata.CreationDate <= DateTime.Now)
+                    metadata.CreationTime <= DateTime.Now)
                 {
                     Pass("Metadata created successfully");
                     Console.WriteLine($"   File: {metadata.OriginalFileName}");
                     Console.WriteLine($"   Size: {metadata.FileSize} bytes");
-                    Console.WriteLine($"   Created: {metadata.CreationDate:yyyy-MM-dd HH:mm:ss}");
+                    Console.WriteLine($"   Created: {metadata.CreationTime:yyyy-MM-dd HH:mm:ss}");
                 }
                 else
                 {

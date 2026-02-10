@@ -171,13 +171,30 @@ namespace CryptoFileExchange.UI
                 Log.Debug("Encrypted data length: {Length} bytes", encryptedData.Length);
                 Log.Debug("Hash: {Hash}", hash);
 
+                // Kreiraj Metadata o originalnom fajlu
+                FileInfo fileInfo = new FileInfo(filePath);
+                var metadata = new FileMetadata
+                {
+                    OriginalFileName = fileInfo.Name,
+                    FileSize = fileInfo.Length,
+                    CreationTime = fileInfo.CreationTime,
+                    EncryptionAlgorithm = "Enigma -> XXTEA -> CFB",
+                    HashAlgorithm = "TigerHash (192-bit)",
+                    FileHash = hash
+                };
+
+                AddLogEntry($"Metadata created for: {metadata.OriginalFileName}", Color.Blue);
+                Log.Information("File metadata: OriginalName={OriginalFileName}, Size={FileSize}, Created={CreationTime}",
+                    metadata.OriginalFileName, metadata.FileSize, metadata.CreationTime);
+
                 // Kreiraj FileTransferMessage
                 var message = new FileTransferMessage
                 {
                     FileName = Path.GetFileName(filePath),
                     FileSize = encryptedData.Length,
                     FileHash = hash,
-                    EncryptedData = encryptedData
+                    EncryptedData = encryptedData,
+                    Metadata = metadata  // Include metadata
                 };
 
                 // === DEBUG: Proveri message ===
@@ -186,6 +203,7 @@ namespace CryptoFileExchange.UI
                 Log.Debug("  FileSize: {FileSize}", message.FileSize);
                 Log.Debug("  FileHash: {Hash}", message.FileHash);
                 Log.Debug("  EncryptedData length: {Length}", message.EncryptedData.Length);
+                Log.Debug("  Metadata included: {HasMetadata}", message.Metadata != null);
 
                 AddLogEntry($"Sending file to {ipAddress}:{recipientPort}...", Color.Blue);
 
@@ -259,12 +277,35 @@ namespace CryptoFileExchange.UI
                 AddLogEntry($"File received: {e.Message.FileName} ({e.Message.FileSize} bytes)", Color.Blue);
                 Log.Information("File received from {Sender}: {FileName}", e.Sender, e.Message.FileName);
 
+                // === DISPLAY METADATA (if available) ===
+                if (e.Message.Metadata != null)
+                {
+                    AddLogEntry("=== File Metadata ===", Color.Green);
+                    AddLogEntry($"  Original Name: {e.Message.Metadata.OriginalFileName}", Color.Green);
+                    AddLogEntry($"  Original Size: {FormatFileSize(e.Message.Metadata.FileSize)}", Color.Green);
+                    AddLogEntry($"  Created: {e.Message.Metadata.CreationTime:yyyy-MM-dd HH:mm:ss}", Color.Green);
+                    AddLogEntry($"  Encryption: {e.Message.Metadata.EncryptionAlgorithm}", Color.Green);
+                    AddLogEntry($"  Hash Algorithm: {e.Message.Metadata.HashAlgorithm}", Color.Green);
+                    AddLogEntry("====================", Color.Green);
+
+                    Log.Information("Received file metadata: OriginalName={OriginalName}, Size={Size}, Created={Created}, EncAlg={EncAlg}",
+                        e.Message.Metadata.OriginalFileName,
+                        e.Message.Metadata.FileSize,
+                        e.Message.Metadata.CreationTime,
+                        e.Message.Metadata.EncryptionAlgorithm);
+                }
+                else
+                {
+                    AddLogEntry("No metadata received (older protocol version or sender didn't include it)", Color.Orange);
+                }
+
                 // === DEBUG: Proveri podatke ===
                 Log.Debug("FileReceived event data:");
                 Log.Debug("  FileName: {FileName}", e.Message.FileName);
                 Log.Debug("  FileSize: {FileSize}", e.Message.FileSize);
                 Log.Debug("  FileHash: {Hash}", e.Message.FileHash);
                 Log.Debug("  EncryptedData length: {Length}", e.Message.EncryptedData?.Length ?? 0);
+                Log.Debug("  Metadata: {HasMetadata}", e.Message.Metadata != null);
 
                 if (e.Message.EncryptedData == null || e.Message.EncryptedData.Length == 0)
                 {
@@ -298,7 +339,22 @@ namespace CryptoFileExchange.UI
                     AddLogEntry($"File decrypted and saved: {outputPath}", Color.Green);
                     Log.Information("File decrypted successfully: {OutputPath}", outputPath);
 
-                    MessageBox.Show($"File received and decrypted successfully!\n\nFile: {e.Message.FileName}\nSaved to: {outputPath}\nHash: VALID",
+                    // Build message box with metadata info
+                    string metadataInfo = "";
+                    if (e.Message.Metadata != null)
+                    {
+                        metadataInfo = $"\n\n=== Original File Info ===\n" +
+                                      $"Name: {e.Message.Metadata.OriginalFileName}\n" +
+                                      $"Size: {FormatFileSize(e.Message.Metadata.FileSize)}\n" +
+                                      $"Created: {e.Message.Metadata.CreationTime:yyyy-MM-dd HH:mm:ss}\n" +
+                                      $"Encryption: {e.Message.Metadata.EncryptionAlgorithm}\n" +
+                                      $"Hash: {e.Message.Metadata.HashAlgorithm}";
+                    }
+
+                    MessageBox.Show($"File received and decrypted successfully!\n\n" +
+                                   $"File: {e.Message.FileName}\n" +
+                                   $"Saved to: {outputPath}\n" +
+                                   $"Hash: VALID. {metadataInfo}",
                         "File Received", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else

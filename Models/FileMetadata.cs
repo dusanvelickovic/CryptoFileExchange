@@ -1,16 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace CryptoFileExchange.Models
 {
-    internal class FileMetadata
+    /// <summary>
+    /// Metadata o originalnom fajlu (pre enkripcije)
+    /// </summary>
+    public class FileMetadata
     {
-        public string OriginalFileName { get; set; }
+        public required string OriginalFileName { get; set; }
         public long FileSize { get; set; }
-        public DateTime CreationDate { get; set; }
-        public string EncryptionAlgorithm { get; set; }
-        public string HashAlgorithm { get; set; }
-        public string FileHash { get; set; }
+        public DateTime CreationTime { get; set; }
+        public string EncryptionAlgorithm { get; set; } = string.Empty;
+        public string HashAlgorithm { get; set; } = string.Empty;
+        public required string FileHash { get; set; }
     }
 }
