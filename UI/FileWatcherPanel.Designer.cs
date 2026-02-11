@@ -46,7 +46,7 @@ namespace CryptoFileExchange.UI
             groupBoxConfig.Size = new Size(800, 180);
             groupBoxConfig.TabIndex = 0;
             groupBoxConfig.TabStop = false;
-            groupBoxConfig.Text = "Configure FileSystemWatcher";
+            groupBoxConfig.Text = "Configure File System Watcher";
             // 
             // lblTargetDirectory
             // 
@@ -166,7 +166,6 @@ namespace CryptoFileExchange.UI
             listViewLog.TabIndex = 0;
             listViewLog.UseCompatibleStateImageBehavior = false;
             listViewLog.View = View.Details;
-            listViewLog.Columns.Add("Events", 770, HorizontalAlignment.Left);
             // 
             // btnClearLog
             // 

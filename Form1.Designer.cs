@@ -94,7 +94,7 @@
             ClientSize = new Size(900, 650);
             Controls.Add(tabControl);
             Name = "Form1";
-            Text = "Crypto File Exchange";
+            Text = "19075 Dusan Velickovic";
             tabControl.ResumeLayout(false);
             tabFileWatcher.ResumeLayout(false);
             tabFileExchange.ResumeLayout(false);
