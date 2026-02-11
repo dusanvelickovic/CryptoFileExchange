@@ -1,38 +1,34 @@
 # UPUTSTVO - CryptoFile Exchange
 
-Detaljno uputstvo za koriš?enje P2P encrypted file transfer aplikacije sa automatskim šifrovanjem.
+Detaljan vodi? za koriš?enje P2P encrypted file transfer aplikacije sa automatskim šifrovanjem.
 
 ---
 
 ## ?? Sadržaj
 
 1. [O Projektu](#o-projektu)
-2. [Najnovije Izmene](#najnovije-izmene)
-3. [Arhitektura](#arhitektura)
-4. [Algoritmi Šifrovanja](#algoritmi-šifrovanja)
-5. [Kako Koristiti Aplikaciju](#kako-koristiti-aplikaciju)
-6. [Podešavanje Encryption Keys](#podešavanje-encryption-keys)
-7. [File System Watcher (FSW)](#file-system-watcher-fsw)
-8. [File Exchange (P2P Transfer)](#file-exchange-p2p-transfer)
-9. [Kompatibilnost](#kompatibilnost)
-10. [Testiranje](#testiranje)
-11. [Troubleshooting](#troubleshooting)
+2. [Arhitektura](#arhitektura)
+3. [Algoritmi Šifrovanja](#algoritmi-šifrovanja)
+4. [Kako Koristiti Aplikaciju](#kako-koristiti-aplikaciju)
+5. [File System Watcher (FSW)](#file-system-watcher-fsw)
+6. [File Exchange (P2P Transfer)](#file-exchange-p2p-transfer)
+7. [Tehni?ki Detalji](#tehni?ki-detalji)
+8. [Testiranje](#testiranje)
+9. [Troubleshooting](#troubleshooting)
+10. [FAQ](#faq)
 
 ---
 
 ## O Projektu
 
-**CryptoFile Exchange** je desktop aplikacija za **bezbedno P2P prenošenje fajlova** sa automatskim šifrovanjem.
+**CryptoFile Exchange** je desktop aplikacija za **bezbedno P2P prenošenje fajlova** sa automatskim šifrovanjem. Aplikacija kombinuje:
 
-### Klju?ne Funkcionalnosti
-
-- ?? **Troslojno šifrovanje** (Enigma ? XXTEA ? CFB)
-- ?? **Dinami?ko podešavanje klju?eva** (kroz UI)
-- ??? **TigerHash** za integritet podataka (192-bit)
-- ?? **Automatski File System Watcher**
-- ?? **P2P File Transfer** preko TCP/IP
-- ?? **Metadata header** sa file info
-- ?? **Serilog** strukturno logovanje
+- ? **Troslojno šifrovanje** (Enigma ? XXTEA ? CFB)
+- ? **TigerHash** za integritet podataka (192-bit)
+- ? **Automatski File System Watcher** za real-time šifrovanje
+- ? **P2P File Transfer** preko TCP/IP protokola
+- ? **Metadata header** sa informacijama o originalnom fajlu
+- ? **Serilog** strukturno logovanje
 
 ### Tehnologije
 
@@ -40,63 +36,11 @@ Detaljno uputstvo za koriš?enje P2P encrypted file transfer aplikacije sa automa
 |------------|-------------|
 | **Framework** | .NET 10 (C# 14.0) |
 | **UI** | Windows Forms |
-| **Šifrovanje** | Enigma (26-letter), XXTEA, CFB Mode |
+| **Šifrovanje** | Enigma, XXTEA, CFB Mode |
 | **Hash** | TigerHash (192-bit) |
 | **Logging** | Serilog (File + Console) |
-| **Networking** | TCP/IP (CFTP Protocol) |
-
----
-
-## ?? Najnovije Izmene
-
-### 1. Encryption Keys UI (NOVO!)
-
-**File Exchange** panel sada ima **Encryption Keys** sekciju:
-
-```
-???????????????????????????????????????????????????????????
-? Encryption Keys (must match on both sender and receiver)?
-?                                                          ?
-? Enigma Key:  [MyEnigmaSecretKey2024      ]              ?
-? XXTEA Key:   [XXTEAKey12345678           ]              ?
-? CFB Key:     [CFBModeKey987654           ]              ?
-? CFB IV:      [                           ] (empty)      ?
-?                                                          ?
-? [Apply Keys]                                            ?
-???????????????????????????????????????????????????????????
-```
-
-**Funkcionalnost:**
-- ? Podesi klju?eve PRIJE slanja/primanja fajlova
-- ? **OBA peer-a moraju imati ISTE klju?eve**
-- ? Klikni "Apply Keys" da primeniš izmene
-- ? Klju?evi se loguju u Activity Log
-
-### 2. Enigma Engine Refaktor
-
-- ? **26-letter alfabeta** (A-Z only) umesto 256-byte
-- ? **Base64 encoding** za binarne podatke
-- ? **Trimming null bytes** iz XXTEA padding-a
-- ? **Case-sensitive mode** za Base64 stringove
-
-### 3. XXTEA Padding Fix
-
-- ? **Simple zero-padding** (bez 0x80 marker-a)
-- ? **Kompatibilan** sa drugim implementacijama
-- ? **Padding ostaje u output-u** (handled by Enigma)
-
-### 4. CFB Mode Simplifikacija
-
-- ? **Simple for-loop** iteracija (i += BLOCK_SIZE)
-- ? **Direct XXTEA.Encrypt(feedback, key)** pozivi
-- ? **Zero-padding** za partial blokove
-- ? **IV support** (empty string = 16 zero bytes)
-
-### 5. Test Suite Poboljšanja
-
-- ? Novi **DrugaAplikacijaCompatibilityTest** (byte-level dijagnostika)
-- ? Uklonjeni zastareli testovi (CompatibilityDebugTest)
-- ? Ažurirani svi testovi za nove API signature
+| **Networking** | TCP/IP (System.Net.Sockets) |
+| **Serialization** | System.Text.Json |
 
 ---
 
@@ -105,88 +49,105 @@ Detaljno uputstvo za koriš?enje P2P encrypted file transfer aplikacije sa automa
 ### Slojevi Aplikacije
 
 ```
-?????????????????????????????????????????????????????????
-?             UI Layer (Windows Forms)                  ?
-?  - FileWatcherPanel.cs                                ?
-?  - FileExchangePanel.cs (+ Encryption Keys UI)        ?
-?????????????????????????????????????????????????????????
+???????????????????????????????????????????????????
+?             UI Layer (Windows Forms)            ?
+?  - FileWatcherPanel.cs                          ?
+?  - FileExchangePanel.cs                         ?
+???????????????????????????????????????????????????
                  ?
-?????????????????????????????????????????????????????????
-?             Services Layer                            ?
-?  - FileSystemWatcherService.cs                        ?
-?  - NetworkService.cs (CFTP Protocol)                  ?
-?  - EncryptionService.cs (Enigma?XXTEA?CFB)            ?
-?  - DecryptionService.cs (CFB?XXTEA?Enigma)            ?
-?  - MetadataService.cs                                 ?
-?????????????????????????????????????????????????????????
+???????????????????????????????????????????????????
+?             Services Layer                      ?
+?  - FileSystemWatcherService.cs                  ?
+?  - NetworkService.cs (CFTP Protocol)            ?
+?  - EncryptionService.cs                         ?
+?  - DecryptionService.cs                         ?
+?  - MetadataService.cs                           ?
+???????????????????????????????????????????????????
                  ?
-?????????????????????????????????????????????????????????
-?          Crypto Algorithms Layer                      ?
-?  - EnigmaEngine.cs (26-letter, Base64)                ?
-?  - XXTEAEngine.cs (zero-padding)                      ?
-?  - CFBMode.cs (simple for-loop)                       ?
-?  - TigerHash.cs (192-bit)                             ?
-?????????????????????????????????????????????????????????
+???????????????????????????????????????????????????
+?          Crypto Algorithms Layer                ?
+?  - EnigmaEngine.cs                              ?
+?  - XXTEAEngine.cs                               ?
+?  - CFBMode.cs                                   ?
+?  - TigerHash.cs                                 ?
+???????????????????????????????????????????????????
+```
+
+### Folder Struktura
+
+```
+CryptoFileExchange/
+??? UI/                     # Windows Forms paneli
+?   ??? FileWatcherPanel.cs     # FSW UI
+?   ??? FileExchangePanel.cs    # P2P Transfer UI
+??? Services/               # Business logika
+?   ??? FileSystemWatcherService.cs
+?   ??? NetworkService.cs
+?   ??? EncryptionService.cs
+?   ??? DecryptionService.cs
+?   ??? MetadataService.cs
+??? Crypto/                 # Algoritmi šifrovanja
+?   ??? EnigmaEngine.cs
+?   ??? XXTEAEngine.cs
+?   ??? CFBMode.cs
+?   ??? TigerHash.cs
+??? Models/                 # Data modeli
+?   ??? FileTransferMessage.cs  # CFTP protokol
+?   ??? FileMetadata.cs
+?   ??? NetworkModels.cs
+??? Tests/                  # Integration & Unit testovi
+??? DOCS/                   # Dokumentacija
+??? Logs/                   # Serilog output (automatski)
 ```
 
 ---
 
 ## Algoritmi Šifrovanja
 
-### Troslojni Lanac
+### 1. Troslojni Lanac Šifrovanja
 
 ```
-?? Original File (bytes)
+?? Original File (Plain Text)
     ?
-?? Layer 1: Enigma (26-letter alphabet)
-    • bytes ? Base64 string ? encrypt A-Z only ? UTF-8 bytes
-    • Key: "MyEnigmaSecretKey2024"
+?? [Layer 1] Enigma Cipher
+    Key: "MyEnigmaSecretKey2024"
     ?
-?? Layer 2: XXTEA (block cipher)
-    • Input: Enigma output
-    • Process: 16-byte key, zero-padding (0-3 bytes)
-    • Key: "XXTEAKey12345678"
+?? [Layer 2] XXTEA (Extended Tiny Encryption Algorithm)
+    Key: "XXTEAKey12345678"
     ?
-?? Layer 3: CFB Mode (cipher feedback)
-    • Input: XXTEA output
-    • Process: CFB with XXTEA as block cipher
-    • IV: "" (empty = 16 zero bytes)
-    • Key: "CFBModeKey987654"
+?? [Layer 3] CFB Mode (Cipher Feedback)
+    Key: "CFBModeKey987654"
     ?
-?? Encrypted Data (binary)
+?? Encrypted Data (Binary)
 ```
 
-**Dešifrovanje:**
+**NAPOMENA:** Redosled je KRITI?AN! Dešifrovanje ide obrnutim redom:
 ```
-CFB?¹ ? XXTEA?¹ ? Enigma?¹
+CFB ? XXTEA ? Enigma
 ```
 
-### Default Klju?evi
-
-| Klju? | Default Vrednost | Dužina |
-|-------|-----------------|--------|
-| **Enigma Key** | `MyEnigmaSecretKey2024` | Bilo koja |
-| **XXTEA Key** | `XXTEAKey12345678` | 16 bytes (pad/truncate) |
-| **CFB Key** | `CFBModeKey987654` | 16 bytes (pad/truncate) |
-| **CFB IV** | `""` (empty) | ? 16 zero bytes |
-
-?? **VAŽNO:** Oba peer-a MORAJU imati ISTE klju?eve!
-
-### TigerHash (192-bit)
+### 2. TigerHash (192-bit)
 
 ```csharp
-// Hash se ra?una NA ŠIFROVANIM podacima
-byte[] encrypted = Encrypt(originalFile);
-string hash = TigerHash.ComputeHash(encrypted);
+// Hash se ra?un? NA ŠIFROVANIM podacima
+byte[] encryptedData = Encrypt(originalFile);
+string hash = TigerHash.ComputeHash(encryptedData);
 
-// Output: 48-char HEX string
-// "a1b2c3d4e5f67890abcdef1234567890abcdef1234567890"
+// Output: 48-character HEX string
+// Example: "A1B2C3D4E5F67890ABCDEF1234567890ABCDEF1234567890"
 ```
 
 **Svrha:**
-- ? Detekcija tampering-a
-- ? Verifikacija integriteta
+- ? Detekcija tampering-a tokom prenosa
+- ? Verifikacija integriteta fajla
 - ? Potvrda da fajl nije ošte?en
+
+### 3. Streaming vs In-Memory
+
+| File Size | Method | Buffer |
+|-----------|--------|--------|
+| **< 50 MB** | In-Memory | U?ita ceo fajl u RAM |
+| **? 50 MB** | Streaming | Procesira u chunk-ovima od 1 MB |
 
 ---
 
@@ -194,76 +155,23 @@ string hash = TigerHash.ComputeHash(encrypted);
 
 ### Prvi Pokretanje
 
-```bash
-dotnet build
-dotnet run
-```
+1. **Build & Run:**
+   ```bash
+   dotnet build
+   dotnet run
+   ```
 
-**Automatski kreirani folderi:**
-```
-CryptoFileExchange.exe
-??? EncryptedFiles/    # FSW output (.cfex)
-??? Received/          # P2P primljeni fajlovi
-??? Logs/              # Serilog (app-YYYYMMDD.log)
-```
+2. **Otvaraju se 2 tab-a:**
+   - **File Watcher** - Automatsko šifrovanje
+   - **File Exchange** - P2P transfer
 
----
-
-## Podešavanje Encryption Keys
-
-### Zašto Je Važno?
-
-**OBA peer-a MORAJU koristiti ISTE klju?eve!**
-
-### Koraci
-
-#### 1?? Otvori File Exchange Tab
-
-#### 2?? Podesi Klju?eve
-
-```
-???????????????????????????????????????????????????????????
-? Encryption Keys                                          ?
-?                                                          ?
-? Enigma Key:  [MyEnigmaSecretKey2024      ]              ?
-? XXTEA Key:   [XXTEAKey12345678           ]              ?
-? CFB Key:     [CFBModeKey987654           ]              ?
-? CFB IV:      [                           ]              ?
-?                                                          ?
-? [Apply Keys]  ? Klikni nakon izmena                     ?
-???????????????????????????????????????????????????????????
-```
-
-**Šta se dešava:**
-1. Unesi nove klju?eve
-2. Klikni **"Apply Keys"**
-3. Servisi se reinicijalizuju
-4. MessageBox potvr?uje izmenu
-5. Klju?evi se loguju
-
-#### 3?? Sinhronizuj sa Drugim Peer-om
-
-**KRITI?NO:** Kopiraj ISTE klju?eve na drugi ra?unar!
-
-**Ra?unar A (Receiver):**
-```
-Enigma: TestKey123
-XXTEA:  AAAAAAAAAAAAAAAA
-CFB:    BBBBBBBBBBBBBBBB
-IV:     (empty)
-[Apply Keys]
-```
-
-**Ra?unar B (Sender):**
-```
-Enigma: TestKey123       ? ISTI!
-XXTEA:  AAAAAAAAAAAAAAAA ? ISTI!
-CFB:    BBBBBBBBBBBBBBBB ? ISTI!
-IV:     (empty)          ? ISTI!
-[Apply Keys]
-```
-
-? Sada mogu da komuniciraju!
+3. **Automatski kreirani folderi:**
+   ```
+   CryptoFileExchange.exe
+   ??? EncryptedFiles/    # Šifrovani .cfex fajlovi (FSW output)
+   ??? Received/          # Primljeni i dešifrovani fajlovi (P2P)
+   ??? Logs/              # Serilog fajlovi (app-YYYYMMDD.log)
+   ```
 
 ---
 
@@ -271,206 +179,738 @@ IV:     (empty)          ? ISTI!
 
 ### Šta je FSW?
 
-Automatski šifruje nove fajlove u pra?enom folderu.
+**File System Watcher** prati izabrani folder i **automatski šifruje** sve nove fajlove koji se pojave.
 
-### Koraci
+### Koraci za Koriš?enje
 
-1. **Browse** ? izaberi folder
-2. **Start FSW**
-3. **Dodaj fajl** u folder ? automatski se šifruje!
+#### 1?? **Izaberi Target Directory**
 
-**Output:**
+```
+??????????????????????????????????????????
+? Target Directory:  [Browse...]         ?
+? C:\Users\dusan\Documents\ToEncrypt     ?
+??????????????????????????????????????????
+```
+
+- Klikni **Browse** dugme
+- Izaberi folder koji želiš da pratiš
+- Svi fajlovi koji se pojave u ovom folderu ?e biti automatski šifrovani
+
+#### 2?? **Pokreni FSW**
+
+```
+??????????????????????????????????????????
+? [Start FSW]                            ?
+? Status: FSW - Active: C:\...\ToEncrypt ?
+??????????????????????????????????????????
+```
+
+- Klikni **Start FSW**
+- Status postaje **Active** (zeleno)
+- FSW sada prati folder
+
+#### 3?? **Dodaj Fajl u Pra?eni Folder**
+
+```bash
+# Kopiraj ili kreiraj fajl u pra?enom folderu
+copy C:\temp\document.pdf C:\Users\dusan\Documents\ToEncrypt\
+```
+
+#### 4?? **Automatska Enkripcija**
+
+```
+Log Output:
+?????????????????????????????????????????????
+[14:30:00] Detected: document.pdf
+[14:30:00] Progress: document.pdf - 50% (512 KB/1 MB)
+[14:30:01] Progress: document.pdf - 100% (1 MB/1 MB)
+[14:30:01] Encrypted: document.pdf -> document.pdf.cfex (1048576 -> 1050000 bytes)
+?????????????????????????????????????????????
+```
+
+#### 5?? **Prona?i Šifrovani Fajl**
+
 ```
 EncryptedFiles/
-??? document.pdf.cfex  # Šifrovani + metadata
+??? document.pdf.cfex    # Šifrovani fajl sa metadata header-om
 ```
+
+Klikni **Open Output Folder** da otvoriš `EncryptedFiles` direktorijum.
+
+### .cfex Format
+
+```
+??????????????????????????????????????????????????
+? METADATA HEADER (JSON)                         ?
+? {                                              ?
+?   "OriginalFileName": "document.pdf",          ?
+?   "FileSize": 1048576,                         ?
+?   "CreationTime": "2024-01-15T14:30:00",       ?
+?   "EncryptionAlgorithm": "Enigma?XXTEA?CFB",   ?
+?   "HashAlgorithm": "TigerHash (192-bit)",      ?
+?   "FileHash": "ABC123..."                      ?
+? }                                              ?
+??????????????????????????????????????????????????
+? ENCRYPTED DATA (Binary)                        ?
+? [Enigma?XXTEA?CFB encrypted bytes]             ?
+??????????????????????????????????????????????????
+```
+
+### Manual Encryption
+
+Ako ne želiš da koristiš FSW, možeš ru?no šifrovati fajl:
+
+1. **Zaustavi FSW** (ako je pokrenut)
+2. Klikni **Encrypt File Manually**
+3. Izaberi fajl
+4. Fajl ?e biti šifrovan i sa?uvan u `EncryptedFiles/`
 
 ---
 
 ## File Exchange (P2P Transfer)
 
-### Scenario: LAN Transfer
+### Šta je File Exchange?
 
-#### Ra?unar A (Receiver):
+**Peer-to-Peer** transfer šifrovanih fajlova preko lokalne mreže ili interneta pomo?u **CFTP (CryptoFile Transfer Protocol)** protokola.
 
+### Scenariji Koriš?enja
+
+#### Scenario 1: Transfer Izme?u Dva Ra?unara (LAN)
+
+**Ra?unar A (Receiver):**
 ```
-1. Podesi KLJU?EVE
-2. [Apply Keys]
-3. Port: 9999
-4. [Start Server]
-```
-
-#### Ra?unar B (Sender):
-
-```
-1. Podesi ISTE KLJU?EVE
-2. [Apply Keys]
-3. [Browse] ? file
-4. IP: 192.168.1.100  ? Receiver IP
-5. Port: 9999
-6. [Send File]
+1. Otvori File Exchange tab
+2. Une?? port (npr. 9999)
+3. Klikni "Start Server"
+4. Sa?ekaj konekciju...
 ```
 
-### Šta se Dešava
+**Ra?unar B (Sender):**
+```
+1. Otvori File Exchange tab
+2. Klikni "Browse" i izaberi fajl
+3. Une?? IP adresu ra?unara A (npr. 192.168.1.100)
+4. Une?i port (9999)
+5. Klikni "Send File"
+```
+
+**Šta se dešava:**
+```
+Ra?unar B (Sender)                    Ra?unar A (Receiver)
+?????????????????                     ?????????????????????
+1. Load file: document.pdf            1. Server listening on :9999
+2. Encrypt: Enigma?XXTEA?CFB          
+3. Hash: TigerHash(encrypted)         
+4. Create Metadata                    
+5. Build CFTP message                 
+6. Connect to 192.168.1.100:9999 ???> 2. Accept connection
+7. Send: [4B length][CFTP msg] ?????> 3. Read length prefix
+                                      4. Read exact bytes (loop)
+                                      5. Parse CFTP message
+                                      6. Verify hash ?
+8. Receive ACK <???????????????????? 7. Decrypt: CFB?XXTEA?Enigma
+                                      8. Save to Received/
+                                      9. Send ACK
+9. Success! ?                        10. Display metadata
+```
+
+#### Scenario 2: Test na Istom Ra?unaru (localhost)
+
+**Instance 1:**
+```
+Port: 9999
+[Start Server]
+```
+
+**Instance 2:**
+```
+IP Address: localhost (ili 127.0.0.1)
+Port: 9999
+[Browse] ? Select file
+[Send File]
+```
+
+### Koraci za P2P Transfer
+
+#### 1?? **Receiver: Pokreni Server**
 
 ```
-Sender                          Receiver
-??????                          ????????
-1. Load file                    1. Listen :9999
-2. Encrypt (Enigma?XXTEA?CFB)   
-3. Hash: TigerHash              
-4. Build CFTP message           
-5. Connect ???????????????????  2. Accept
-6. Send CFTP ?????????????????  3. Read
-                                4. Verify hash ?
-7. Receive ACK ???????????????  5. Decrypt (CFB?XXTEA?Enigma)
-                                6. Save to Received/
-8. Success! ?                  7. Send ACK
+??????????????????????????????????????????
+? Server Settings                        ?
+? Port: [9999]          [Start Server]   ?
+??????????????????????????????????????????
+
+Log Output:
+???????????????????????????????????????
+Connection: Listening on port 9999 (0.0.0.0:9999)
+Server started on port 9999
+???????????????????????????????????????
+```
+
+**Server Status:**
+- Dugme postaje **"Stop Server"** (crveno)
+- Port field se disabluje
+- Client sekcija se disabluje
+
+#### 2?? **Sender: Izaberi Fajl**
+
+```
+??????????????????????????????????????????
+? Send File to Peer                      ?
+? File: [document.pdf]      [Browse...]  ?
+??????????????????????????????????????????
+
+Log Output:
+???????????????????????????????????????
+File selected: document.pdf (1.5 MB)
+???????????????????????????????????????
+```
+
+#### 3?? **Sender: Une?? Recipient Info**
+
+```
+??????????????????????????????????????????
+? IP Address: [192.168.1.100]            ?
+? Port:       [9999]                     ?
+? [Send File]                            ?
+??????????????????????????????????????????
+```
+
+**Pronalaženje IP Adrese:**
+
+**Na Windows (Receiver):**
+```cmd
+ipconfig
+
+Ethernet adapter Ethernet:
+   IPv4 Address. . . . . . . . . . . : 192.168.1.100
+```
+
+**Na Linux/Mac (Receiver):**
+```bash
+ifconfig
+# ili
+ip addr show
+```
+
+#### 4?? **Sender: Pošalji Fajl**
+
+```
+Log Output:
+???????????????????????????????????????
+Encrypting file: document.pdf...
+File encrypted successfully. Hash: A1B2C3D4E5F67890...
+Metadata created for: document.pdf
+Sending file to 192.168.1.100:9999...
+Sending: document.pdf - 50% (768 KB/1.5 MB)
+Sending: document.pdf - 100% (1.5 MB/1.5 MB)
+File sent successfully to 192.168.1.100:9999
+???????????????????????????????????????
+```
+
+#### 5?? **Receiver: Prijem i Dekriptovanje**
+
+```
+Log Output:
+???????????????????????????????????????
+Connection: Client connected (192.168.1.50:54321)
+File received: document.pdf (1500000 bytes)
+
+=== File Metadata ===
+  Original Name: document.pdf
+  Original Size: 1.5 MB
+  Created: 2024-01-15 14:30:00
+  Encryption: Enigma -> XXTEA -> CFB
+  Hash Algorithm: TigerHash (192-bit)
+====================
+
+Verifying hash and decrypting file...
+Hash verification: SUCCESS ?
+File decrypted and saved: C:\...\Received\document.pdf
+???????????????????????????????????????
+```
+
+**MessageBox:**
+```
+??????????????????????????????????????????????
+? File Received                           [X]?
+??????????????????????????????????????????????
+? File received and decrypted successfully!  ?
+?                                            ?
+? File: document.pdf                         ?
+? Saved to: C:\...\Received\document.pdf     ?
+? Hash: VALID ?                             ?
+?                                            ?
+? === Original File Info ===                ?
+? Name: document.pdf                         ?
+? Size: 1.5 MB                               ?
+? Created: 2024-01-15 14:30:00               ?
+? Encryption: Enigma -> XXTEA -> CFB         ?
+? Hash: TigerHash (192-bit)                  ?
+?                                            ?
+?              [OK]                          ?
+??????????????????????????????????????????????
+```
+
+#### 6?? **Proveri Primljeni Fajl**
+
+```
+Received/
+??? document.pdf    # Dešifrovani fajl (identi?an originalu)
+```
+
+**Verifikuj:**
+```powershell
+# Compare hash-ove (trebaju biti identi?ni)
+Get-FileHash C:\Original\document.pdf -Algorithm SHA256
+Get-FileHash C:\CryptoFileExchange\Received\document.pdf -Algorithm SHA256
 ```
 
 ---
 
-## Kompatibilnost
+## Tehni?ki Detalji
 
-### Kompatibilne Aplikacije
+### CFTP Protocol (CryptoFile Transfer Protocol)
 
-CryptoFileExchange radi sa aplikacijama koje koriste:
-- ? Enigma (26-letter alphabet)
-- ? XXTEA (16-byte key, zero-padding)
-- ? CFB Mode (IV support)
-- ? TigerHash (192-bit)
+#### Message Format
 
-### Test Kompatibilnosti
-
-```bash
-dotnet run
-
-# Potraži u output-u:
-# "=== DRUGAAPLIKACIJA COMPATIBILITY TEST ==="
+```
+????????????????????????????????????????????????
+? TCP Length Prefix (4 bytes, Int32)          ?
+? Message Length                               ?
+????????????????????????????????????????????????
+? CFTP MESSAGE                                 ?
+? ???????????????????????????????????????????? ?
+? ? MAGIC: "CFTP" (4 bytes, ASCII)           ? ?
+? ? VERSION: 1 (4 bytes, Int32)              ? ?
+? ???????????????????????????????????????????? ?
+? ? FILENAME_LEN (4 bytes, Int32)            ? ?
+? ? FILENAME (N bytes, UTF-8)                ? ?
+? ???????????????????????????????????????????? ?
+? ? FILE_SIZE (8 bytes, Int64)               ? ?
+? ? HASH_LEN (4 bytes, Int32)                ? ?
+? ? HASH (48 bytes, UTF-8 HEX)               ? ?
+? ???????????????????????????????????????????? ?
+? ? DATA_LEN (8 bytes, Int64)                ? ?
+? ? ENCRYPTED_DATA (N bytes, Binary)         ? ?
+? ???????????????????????????????????????????? ?
+? ? METADATA_LEN (4 bytes, Int32)            ? ?
+? ? METADATA_JSON (N bytes, UTF-8)           ? ?
+? ???????????????????????????????????????????? ?
+????????????????????????????????????????????????
 ```
 
-### Klju?evi za Kompatibilnost
+#### Length-Prefixed Reading (KRITI?NO!)
 
-| Sistem | Enigma | XXTEA | CFB | IV |
-|--------|--------|-------|-----|-----|
-| **CryptoFileExchange** | `MyEnigmaSecretKey2024` | `XXTEAKey12345678` | `CFBModeKey987654` | `""` |
-| **Druga aplikacija** | `MyEnigmaSecretKey2024` | `XXTEAKey12345678` | `CFBModeKey987654` | `""` |
+```csharp
+// ? WRONG - Ne garantuje ?itanje svih bytes-a
+byte[] data = stream.Read(buffer, 0, expectedLength);
+
+// ? CORRECT - Loop do kraja
+byte[] buffer = new byte[expectedLength];
+int totalRead = 0;
+while (totalRead < expectedLength)
+{
+    int bytesRead = stream.Read(buffer, totalRead, expectedLength - totalRead);
+    if (bytesRead == 0) throw new Exception("Connection closed");
+    totalRead += bytesRead;
+}
+```
+
+### Logging (Serilog)
+
+#### Log Fajlovi
+
+```
+Logs/
+??? app-20240115.log    # Danas
+??? app-20240114.log    # Ju?e
+??? app-20240113.log    # Prekju?e
+```
+
+**Retention:** 30 dana (automatsko brisanje starih)
+
+#### Log Levels
+
+| Level | UI Color | Primer |
+|-------|----------|--------|
+| **Error** | Red | `[ERR] Failed to send file: Connection refused` |
+| **Warning** | Orange | `[WRN] Hash verification failed` |
+| **Information** | Green/Blue | `[INF] File encrypted successfully` |
+| **Debug** | Gray | `[DBG] Encrypted data length: 1048576 bytes` |
+
+#### Log Format
+
+```
+2024-01-15 14:30:00.123 [INF] File received from 192.168.1.50:54321: document.pdf
+2024-01-15 14:30:01.456 [ERR] Error sending file: Connection refused
+System.Net.Sockets.SocketException: No connection could be made...
+   at System.Net.Sockets.TcpClient.Connect(String hostname, Int32 port)
+   at CryptoFileExchange.Services.NetworkService.SendFileAsync(...)
+   ... (stack trace)
+```
+
+### Event-Driven Architecture
+
+```
+UI Layer                Services Layer              Crypto Layer
+????????                ??????????????              ????????????
+
+[Button Click]
+    ?
+    ???> EncryptionService.EncryptFileAsync()
+    ?         ?
+    ?         ???> EnigmaEngine.Encrypt()
+    ?         ???> XXTEAEngine.Encrypt()
+    ?         ???> CFBMode.Encrypt()
+    ?         ???> TigerHash.ComputeHash()
+    ?         ?
+    ?         ???> [EncryptionProgress Event] ??> UI Update
+    ?
+    ???> NetworkService.SendFileAsync()
+              ?
+              ???> FileTransferMessage.ToBytes()
+              ???> TCP Send
+                    ?
+                    ???> [TransferProgress Event] ??> UI Update
+```
 
 ---
 
 ## Testiranje
 
-### Unit & Integration Tests
+### Unit Testovi
 
 ```bash
-dotnet run
+# Pokreni sve testove
+dotnet test
 
-# Output:
-# ????????????????????????????????????????
-# EnigmaEngine Test Suite
-# XXTEAEngine Test Suite
-# CFBMode Test Suite
-# TigerHash Test Suite
-# ...
-# DrugaAplikacija Compatibility Test Suite
-# ????????????????????????????????????????
-# OVERALL TEST SUMMARY
-#   Total Test Suites:  10
-#   Passed:             XX
-#   Failed:             0
-# ????????????????????????????????????????
+# Pokreni specifi?an test suite
+dotnet test --filter "FullyQualifiedName~EncryptionDecryptionServiceTests"
 ```
 
-### Manual P2P Test
+**Test Suites:**
+- ? `EncryptionDecryptionServiceTests` (13 testova)
+- ? `MetadataServiceTests` (13 testova)
+- ? `NetworkServiceTests` (12 testova)
+- ? `FileSystemWatcherServiceTests` (11 testova)
+- ? `FileExchangeIntegrationTests` (3 E2E testa)
+- ? `TigerHashTests` (6 testova)
+- ? Ostalo (13 testova)
 
-1. Pokreni 2 instance
-2. Instance 1: **Start Server** (port 9999)
-3. Instance 2: **Send File** ? localhost:9999
-4. Proveri `Received/` folder
+**Ukupno:** 71 test (100% passing)
+
+### Integration Test (E2E)
+
+```bash
+# Kompletan workflow test
+dotnet test --filter "TestCompleteFileExchangeWorkflow"
+```
+
+**Šta testira:**
+1. Encrypt originalnog fajla
+2. Slanje preko localhost TCP
+3. Prijem i parsiranje CFTP poruke
+4. Hash verifikacija
+5. Decryption
+6. Byte-perfect pore?enje sa originalom
+
+### Manual Test P2P
+
+**Test Plan:**
+
+1. **Pokreni 2 instance aplikacije**
+   ```bash
+   # Terminal 1
+   dotnet run
+   
+   # Terminal 2
+   dotnet run
+   ```
+
+2. **Instance 1 (Receiver):**
+   - File Exchange tab
+   - Port: `9999`
+   - **Start Server**
+
+3. **Instance 2 (Sender):**
+   - File Exchange tab
+   - Browse: Izaberi test fajl (npr. `test.txt`)
+   - IP: `localhost`
+   - Port: `9999`
+   - **Send File**
+
+4. **Provera:**
+   - Instance 1: Check `Received/test.txt`
+   - Uporedi sa originalom (trebaju biti identi?ni)
 
 ---
 
 ## Troubleshooting
 
-### ? "Hash verification: FAILED"
+### Problem 1: "Connection Refused"
 
-**Problem:** Klju?evi nisu identi?ni.
-
-**Rešenje:**
-1. Proveri Encryption Keys na OBA ra?unara
-2. SVA 4 klju?a moraju biti IDENTI?NA
-3. Klikni "Apply Keys" na OBA
-4. Pokušaj ponovo
-
-### ? "Dekriptovani tekst nije validan Base64 format"
-
-**Problem:** XXTEA padding ili Enigma encoding.
-
-**Rešenje:**
-1. Update na najnoviju verziju
-2. Proveri klju?eve
-3. Pokreni DrugaAplikacijaCompatibilityTest
-
-### ? Server se ne pokre?e
-
-**Problem:** Port ve? u upotrebi.
-
-**Rešenje:**
-```powershell
-# Prona?i proces
-netstat -ano | findstr :9999
-
-# Zatvori ili promeni port
+**Simptom:**
+```
+Network error: Failed to send file: Connection refused - Server is not running...
 ```
 
-### ? "Connection refused"
+**Rešenje:**
+1. Proveri da li **Receiver ima pokrenut server**
+   - Server status treba da bude **Active** (zeleno)
+2. Proveri **port** - mora biti isti na oba kraja
+3. Proveri **firewall**:
+   ```bash
+   # Windows: Dodaj firewall rule
+   netsh advfirewall firewall add rule name="CryptoFileExchange" dir=in action=allow protocol=TCP localport=9999
+   ```
+4. Proveri **IP adresu**:
+   ```bash
+   ping 192.168.1.100
+   ```
 
-**Problem:** Firewall ili pogrešna IP.
+### Problem 2: "Port Already in Use"
+
+**Simptom:**
+```
+Failed to start server: Only one usage of each socket address...
+```
 
 **Rešenje:**
-1. Windows Firewall ? Allow CryptoFileExchange.exe
-2. Proveri IP: `ipconfig` (na receiver)
-3. Test: `ping 192.168.1.100`
+1. **Zatvori drugu instancu** koja koristi isti port
+2. **Promeni port** (npr. sa 9999 na 10000)
+3. **Prona?i proces** koji koristi port:
+   ```bash
+   netstat -ano | findstr :9999
+   taskkill /PID <PID> /F
+   ```
+
+### Problem 3: "Hash Verification Failed"
+
+**Simptom:**
+```
+Hash verification: FAILED - File may be corrupted!
+```
+
+**Uzroci:**
+- ? Fajl ošte?en tokom prenosa
+- ? Razli?iti encryption keys
+- ? Verzije aplikacija nisu kompatibilne
+
+**Rešenje:**
+1. Proveri da obe aplikacije koriste **iste klju?eve**:
+   ```csharp
+   DEFAULT_ENIGMA_KEY = "MyEnigmaSecretKey2024"
+   DEFAULT_XXTEA_KEY = "XXTEAKey12345678"
+   DEFAULT_CFB_KEY = "CFBModeKey987654"
+   ```
+2. Proveri **Logs/** za detalje
+3. Pokušaj ponovo da pošalješ fajl
+
+### Problem 4: "Invalid Encrypted Data Length"
+
+**Simptom:**
+```
+Error processing received file: Invalid encrypted data length
+```
+
+**Uzroci:**
+- ? Nepotpun TCP prenos
+- ? Stream closed prematurely
+
+**Rešenje:**
+- ? **Verzija sa Length-Prefixed protokolom** (trenutna verzija) rešava ovaj problem
+- Proveri log za: `"Expected X bytes, received Y bytes"`
+- Restartuj obe aplikacije
+
+### Problem 5: FSW Ne Detektuje Fajlove
+
+**Simptom:**
+- Fajl kopiran u target folder
+- Ništa se ne dešava u log-u
+
+**Rešenje:**
+1. Proveri da je FSW **pokrenut** (Status: Active)
+2. Proveri **target directory path**
+3. Proveri da fajl nije **locked** od strane drugog procesa
+4. Restartuj FSW (Stop ? Start)
+
+### Problem 6: ListView Ne Prikazuje Logove
+
+**Simptom:**
+- Aplikacija radi, ali nema log unosa u UI
+
+**Rešenje:**
+1. Proveri **Logs/** fajlove (tamo su svi logovi)
+2. Restartuj aplikaciju
+3. Testiraj **Clear Log** dugme
 
 ---
 
 ## FAQ
 
-### ? Mogu li da menjam klju?eve za svaki fajl?
+### 1. Da li mogu da šifrujem bilo koji tip fajla?
 
-**Da!** Klikni "Apply Keys" pre svakog transfera.
+**Da!** Aplikacija podržava **SVE** tipove fajlova:
+- ?? Dokumenti (PDF, DOCX, TXT, ...)
+- ??? Slike (JPG, PNG, BMP, ...)
+- ?? Video (MP4, AVI, MKV, ...)
+- ?? Audio (MP3, WAV, FLAC, ...)
+- ?? Arhive (ZIP, RAR, 7z, ...)
+- ?? Executables (EXE, DLL, ...)
 
-### ? Da li klju?evi ostaju sa?uvani?
+### 2. Postoji li limit za veli?inu fajla?
 
-**Ne.** Resetuju se nakon restarta aplikacije.
+**Teoretski:** 1 GB (CFTP protocol limit)
 
-### ? FSW vs File Exchange klju?evi?
+**Prakti?no:**
+- **< 50 MB:** In-memory encryption (brzo, koristi RAM)
+- **? 50 MB:** Streaming encryption (sporije, manje RAM-a)
+- **Testirano:** Do 500 MB bez problema
 
-FSW koristi hard-coded klju?eve. File Exchange koristi UI klju?eve.
+### 3. Da li mogu da šaljem fajlove preko interneta (WAN)?
 
-### ? Kako da šaljem preko interneta?
+**Da**, ali:
+1. **Receiver mora imati javnu IP adresu** ili **port forwarding**
+2. **Firewall** mora dozvoliti TCP na odabranom portu
+3. **Bezbednost:** CFTP nema TLS/SSL (koristiti VPN za dodatnu zaštitu)
 
-**Port Forwarding:**
-1. Router settings (192.168.1.1)
-2. Forward port 9999 ? receiver IP
-3. Sender koristi JAVNU IP adresu router-a
+**Primer Port Forwarding:**
+```
+Router Settings:
+External Port: 9999 ? Internal IP: 192.168.1.100, Port: 9999
+```
+
+### 4. Šta je .cfex fajl?
+
+**.cfex** = **C**rypto **F**ile **Ex**change format
+
+```
+.cfex = JSON Metadata Header + Encrypted Data
+```
+
+- Sadrži **sve informacije** o originalnom fajlu
+- Može se dešifrovati pomo?u aplikacije
+- **NE OTVARA SE** direktno (treba dešifrovanje)
+
+### 5. Mogu li da dešifrujem .cfex fajl van aplikacije?
+
+**Tehni?ki da**, ali moraš:
+1. Izvu?i metadata header (JSON)
+2. Izvu?i encrypted data
+3. Ru?no dešifrovati: CFB ? XXTEA ? Enigma
+4. Koristiti **identi?ne klju?eve**
+
+**Lakše:** Koristi **File Exchange** da primiš fajl (automatski dešifruje).
+
+### 6. Kako promeniti encryption klju?eve?
+
+**Promeni u kodu:**
+
+```csharp
+// UI/FileExchangePanel.cs & UI/FileWatcherPanel.cs
+private const string DEFAULT_ENIGMA_KEY = "MojNoviKljuc2024";  // ? Promeni
+private const string DEFAULT_XXTEA_KEY = "NoviXXTEAKljuc";     // ? Promeni
+private const string DEFAULT_CFB_KEY = "NoviCFBKljuc";         // ? Promeni
+```
+
+**NAPOMENA:** Svi peer-ovi moraju imati **identi?ne klju?eve** za interoperabilnost!
+
+### 7. Gde se ?uvaju log fajlovi?
+
+```
+CryptoFileExchange.exe
+??? Logs/
+    ??? app-20240115.log    # Aktuelni dan
+    ??? app-20240114.log
+    ??? ...                 # 30 dana retention
+```
+
+**Format:** `app-YYYYMMDD.log`
+
+### 8. Može li aplikacija raditi u background-u?
+
+**Trenutno:** Ne (Windows Forms GUI aplikacija)
+
+**Mogu?e nadogradnje:**
+- Windows Service za FSW
+- Tray icon sa minimizacijom
+- Headless mode za server-only
+
+### 9. Kako testirati na istom ra?unaru?
+
+**Jednostavno:**
+1. Pokreni **2 instance** aplikacije
+2. Instance 1: Server na port `9999`
+3. Instance 2: Send ka `localhost:9999`
+
+**Alternativa:**
+```bash
+# Terminal 1
+dotnet run --port 9999
+
+# Terminal 2
+dotnet run --port 10000
+```
+
+### 10. Šta je CFTP protokol?
+
+**CFTP** = **C**rypto**F**ile **T**ransfer **P**rotocol
+
+Custom **binary protocol** za transfer šifrovanih fajlova:
+- Length-prefixed messages
+- Magic number (`"CFTP"`)
+- Verzionisanje (trenutno v1)
+- Metadata support (JSON)
+- Backwards compatible
+
+**Dokumentacija:** `DOCS/PROTOCOL_SPEC.md`
 
 ---
 
-## ?? Licenca
+## Dodatni Resursi
 
-MIT License
+### Dokumentacija
+
+| Fajl | Opis |
+|------|------|
+| `DOCS/PROTOCOL_SPEC.md` | CFTP protokol specifikacija |
+| `DOCS/NETWORK_TROUBLESHOOTING.md` | Network debugging guide |
+| `DOCS/DEBUG_FILE_EXCHANGE_ERROR.md` | P2P error troubleshooting |
+| `DOCS/LOGGING_REFACTORING.md` | Exception logging pattern |
+
+### Source Code
+
+| Folder | Opis |
+|--------|------|
+| `UI/` | Windows Forms panels |
+| `Services/` | Business logic |
+| `Crypto/` | Encryption algorithms |
+| `Models/` | Data models |
+| `Tests/` | Unit & integration tests |
+
+### External Links
+
+- **GitHub:** https://github.com/dusanvelickovic/CryptoFileExchange
+- **Serilog:** https://serilog.net/
+- **TigerHash:** https://www.cs.technion.ac.il/~biham/Reports/Tiger/
 
 ---
 
-## ????? Autor
+## Kontakt & Podrška
 
-**Dušan Veli?kovi?**
-- GitHub: [@dusanvelickovic](https://github.com/dusanvelickovic)
-- Repository: [CryptoFileExchange](https://github.com/dusanvelickovic/CryptoFileExchange)
+Za pitanja, bug reports ili feature requests:
+- **GitHub Issues:** https://github.com/dusanvelickovic/CryptoFileExchange/issues
+- **Email:** [Tvoj email]
 
 ---
 
-**Verzija:** 2.0.0  
-**Poslednje ažuriranje:** 2024-01-15  
-**Branch:** dev
+## Licenca
+
+[Definiši licencu ovde]
+
+---
+
+**Verzija:** 1.0  
+**Datum:** 2024-01-15  
+**Autor:** Dusan Velickovic
