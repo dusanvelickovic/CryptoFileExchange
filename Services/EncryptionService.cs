@@ -15,6 +15,7 @@ namespace CryptoFileExchange.Services
     {
         private const long STREAMING_THRESHOLD = 50 * 1024 * 1024; // 50 MB
         private const int BUFFER_SIZE = 1024 * 1024; // 1 MB chunks
+        private const int CFB_KEY_SIZE = 16; // 16 bytes (128-bit)
 
         // Algoritmi
         private readonly EnigmaEngine _enigma;
@@ -26,11 +27,12 @@ namespace CryptoFileExchange.Services
         private readonly string _enigmaKey;
         private readonly string _xxteaKey;
         private readonly string _cfbKey;
+        private readonly string _cfbIV;
 
         // Events za progress
         public event EventHandler<FileProgressEventArgs>? EncryptionProgress;
 
-        public EncryptionService(string enigmaKey, string xxteaKey, string cfbKey)
+        public EncryptionService(string enigmaKey, string xxteaKey, string cfbKey, string cfbIV = "")
         {
             if (string.IsNullOrWhiteSpace(enigmaKey))
                 throw new ArgumentException("Enigma key cannot be null or empty");
@@ -42,6 +44,7 @@ namespace CryptoFileExchange.Services
             _enigmaKey = enigmaKey;
             _xxteaKey = xxteaKey;
             _cfbKey = cfbKey;
+            _cfbIV = cfbIV;
 
             _enigma = new EnigmaEngine();
             _xxtea = new XXTEAEngine();
@@ -85,7 +88,7 @@ namespace CryptoFileExchange.Services
         }
 
         /// <summary>
-        /// Lanac enkripcije: Enigma -> XXTEA -> CFB
+        /// Lanac enkripcije: Enigma -> XXTEA -> CFB (with IV)
         /// </summary>
         private byte[] EncryptChain(byte[] data)
         {
@@ -93,15 +96,49 @@ namespace CryptoFileExchange.Services
             byte[] step1 = _enigma.Encrypt(data, _enigmaKey);
             Log.Debug("Enigma encryption completed ({Bytes} bytes)", step1.Length);
 
-            // Korak 2: XXTEA
-            byte[] step2 = _xxtea.Encrypt(step1, _xxteaKey);
+            // Korak 2: XXTEA (uses byte[] key - 16 bytes for compatibility)
+            byte[] xxteaKeyBytes = StringToKeyBytes(_xxteaKey, 16);
+            byte[] step2 = _xxtea.Encrypt(step1, xxteaKeyBytes);
             Log.Debug("XXTEA encryption completed ({Bytes} bytes)", step2.Length);
 
-            // Korak 3: CFB
-            byte[] step3 = _cfb.Encrypt(step2, _cfbKey);
+            // Korak 3: CFB (with IV for compatibility)
+            byte[] cfbIVBytes = StringToKeyBytes(_cfbIV, CFB_KEY_SIZE);
+            byte[] step3 = _cfb.Encrypt(step2, _cfbKey, cfbIVBytes);
             Log.Debug("CFB encryption completed ({Bytes} bytes)", step3.Length);
 
             return step3;
+        }
+
+        /// <summary>
+        /// Convert string to byte array with padding/truncating
+        /// </summary>
+        private byte[] StringToKeyBytes(string keyString, int targetLength)
+        {
+            if (string.IsNullOrEmpty(keyString))
+            {
+                return new byte[targetLength];
+            }
+
+            byte[] keyBytes = System.Text.Encoding.UTF8.GetBytes(keyString);
+
+            if (keyBytes.Length == targetLength)
+            {
+                return keyBytes;
+            }
+            else if (keyBytes.Length < targetLength)
+            {
+                // Padding sa nulama
+                byte[] padded = new byte[targetLength];
+                Array.Copy(keyBytes, padded, keyBytes.Length);
+                return padded;
+            }
+            else
+            {
+                // Truncate
+                byte[] truncated = new byte[targetLength];
+                Array.Copy(keyBytes, truncated, targetLength);
+                return truncated;
+            }
         }
 
         /// <summary>

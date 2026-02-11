@@ -20,9 +20,12 @@ namespace CryptoFileExchange.UI
 
         private bool _isServerMode = false;
         private const int DEFAULT_PORT = 9999;
-        private const string DEFAULT_ENIGMA_KEY = "MyEnigmaSecretKey2024";
-        private const string DEFAULT_XXTEA_KEY = "XXTEAKey12345678";
-        private const string DEFAULT_CFB_KEY = "CFBModeKey987654";
+        
+        // Encryption keys (can be changed via UI)
+        private string _enigmaKey = "MyEnigmaSecretKey2024";
+        private string _xxteaKey = "XXTEAKey12345678";
+        private string _cfbKey = "CFBModeKey987654";
+        private string _cfbIV = ""; // Empty string = 16 zero bytes
 
         public FileExchangePanel()
         {
@@ -45,8 +48,8 @@ namespace CryptoFileExchange.UI
 
         private void InitializeServices()
         {
-            _encryptionService = new EncryptionService(DEFAULT_ENIGMA_KEY, DEFAULT_XXTEA_KEY, DEFAULT_CFB_KEY);
-            _decryptionService = new DecryptionService(DEFAULT_ENIGMA_KEY, DEFAULT_XXTEA_KEY, DEFAULT_CFB_KEY);
+            _encryptionService = new EncryptionService(_enigmaKey, _xxteaKey, _cfbKey, _cfbIV);
+            _decryptionService = new DecryptionService(_enigmaKey, _xxteaKey, _cfbKey, _cfbIV);
             _networkService = new NetworkService();
 
             // Subscribe to network events
@@ -60,6 +63,7 @@ namespace CryptoFileExchange.UI
             _decryptionService.DecryptionProgress += OnDecryptionProgress;
 
             AddLogEntry("File Exchange initialized", Color.Blue);
+            AddLogEntry($"Keys: Enigma={_enigmaKey}, XXTEA={_xxteaKey}, CFB={_cfbKey}, IV={(string.IsNullOrEmpty(_cfbIV) ? "(empty)" : _cfbIV)}", Color.Gray);
         }
 
         #region Button Events
@@ -257,6 +261,71 @@ namespace CryptoFileExchange.UI
         {
             listViewLog.Items.Clear();
             AddLogEntry("Log cleared", Color.Gray);
+        }
+
+        private void btnApplyKeys_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                // Validate keys
+                if (string.IsNullOrWhiteSpace(txtEnigmaKey.Text))
+                {
+                    MessageBox.Show("Enigma Key cannot be empty!", "Invalid Key", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(txtXXTEAKey.Text))
+                {
+                    MessageBox.Show("XXTEA Key cannot be empty!", "Invalid Key", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(txtCFBKey.Text))
+                {
+                    MessageBox.Show("CFB Key cannot be empty!", "Invalid Key", 
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Update keys
+                _enigmaKey = txtEnigmaKey.Text;
+                _xxteaKey = txtXXTEAKey.Text;
+                _cfbKey = txtCFBKey.Text;
+                _cfbIV = txtCFBIV.Text; // Can be empty
+
+                // Reinitialize services with new keys
+                AddLogEntry("Updating encryption keys...", Color.Blue);
+                
+                // Dispose old services
+                _encryptionService = null;
+                _decryptionService = null;
+
+                // Create new services with updated keys
+                _encryptionService = new EncryptionService(_enigmaKey, _xxteaKey, _cfbKey, _cfbIV);
+                _decryptionService = new DecryptionService(_enigmaKey, _xxteaKey, _cfbKey, _cfbIV);
+
+                // Re-subscribe to events
+                _encryptionService.EncryptionProgress += OnEncryptionProgress;
+                _decryptionService.DecryptionProgress += OnDecryptionProgress;
+
+                AddLogEntry("Keys updated successfully!", Color.Green);
+                AddLogEntry($"New Keys: Enigma={_enigmaKey}, XXTEA={_xxteaKey}, CFB={_cfbKey}, IV={(string.IsNullOrEmpty(_cfbIV) ? "(empty)" : _cfbIV)}", Color.Gray);
+                
+                MessageBox.Show("Encryption keys updated successfully!\n\n" +
+                               $"Enigma: {_enigmaKey}\n" +
+                               $"XXTEA: {_xxteaKey}\n" +
+                               $"CFB: {_cfbKey}\n" +
+                               $"IV: {(string.IsNullOrEmpty(_cfbIV) ? "(empty = 16 zero bytes)" : _cfbIV)}",
+                    "Keys Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                AddLogEntry($"Error updating keys: {ex.Message}", Color.Red, ex);
+                MessageBox.Show($"Error updating keys: {ex.Message}", "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         #endregion

@@ -12,6 +12,7 @@ namespace CryptoFileExchange.Tests
         private const string TEST_KEY_ENIGMA = "TestEnigmaKey123";
         private const string TEST_KEY_XXTEA = "XXTEATestKey456";
         private const string TEST_KEY_CFB = "CFBTestKey789";
+        private const string TEST_KEY_CFB_IV = ""; // Empty string = 16 zero bytes
 
         public static (int passed, int failed) RunAllTests()
         {
@@ -35,7 +36,7 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 1: Basic Encryption Service");
             try
             {
-                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
+                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
 
                 // Kreiraj test fajl
                 string testFilePath = Path.Combine(Path.GetTempPath(), "test_encrypt.txt");
@@ -81,8 +82,8 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 2: Basic Decryption Service");
             try
             {
-                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
-                var decryptionService = new DecryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
+                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
+                var decryptionService = new DecryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
 
                 // Prvo enkriptuj
                 string testFilePath = Path.Combine(Path.GetTempPath(), "test_decrypt.txt");
@@ -131,8 +132,8 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 3: Encrypt-Decrypt Round Trip (Data Integrity)");
             try
             {
-                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
-                var decryptionService = new DecryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
+                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
+                var decryptionService = new DecryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
 
                 // Originalni sadrzaj
                 string originalContent = "Round trip test! This content should be preserved through encryption and decryption.";
@@ -179,8 +180,8 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 4: Hash Verification (Tamper Detection)");
             try
             {
-                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
-                var decryptionService = new DecryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
+                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
+                var decryptionService = new DecryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
 
                 string testFilePath = Path.Combine(Path.GetTempPath(), "test_hash.txt");
                 File.WriteAllText(testFilePath, "Hash verification test");
@@ -243,8 +244,8 @@ namespace CryptoFileExchange.Tests
             Console.WriteLine("Test 5: Large File Encryption (Streaming Mode)");
             try
             {
-                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
-                var decryptionService = new DecryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB);
+                var encryptionService = new EncryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
+                var decryptionService = new DecryptionService(TEST_KEY_ENIGMA, TEST_KEY_XXTEA, TEST_KEY_CFB, TEST_KEY_CFB_IV);
 
                 // Kreiraj fajl veci od 50MB (testiramo streaming)
                 string testFilePath = Path.Combine(Path.GetTempPath(), "test_large.bin");

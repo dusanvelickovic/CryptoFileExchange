@@ -1,26 +1,59 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System;
 using System.Security.Cryptography;
 using System.Text;
 using CryptoFileExchange.Algorithms.Symmetric;
 
 namespace CryptoFileExchange.Algorithms.BlockCipher
 {
+    /// <summary>
+    /// CFB Mode (Cipher Feedback) implementation
+    /// </summary>
     internal class CFBMode
     {
-        private readonly int _blockSize;
-        private const int DEFAULT_BLOCK_SIZE = 16;
+        private readonly XXTEAEngine _xxtea;
+        private const int BLOCK_SIZE = 16;
 
-        public CFBMode(int blockSize = DEFAULT_BLOCK_SIZE)
+        public CFBMode()
         {
-            if (blockSize <= 0 || blockSize % 4 != 0)
-                throw new ArgumentException("Block size must be positive and multiple of 4");
-
-            _blockSize = blockSize;
+            _xxtea = new XXTEAEngine();
         }
 
-        public byte[] Encrypt(byte[] data, string key)
+        /// <summary>
+        /// Convert string to 16-byte key array (padding/truncating)
+        /// </summary>
+        private byte[] StringToKeyBytes(string keyString)
+        {
+            if (string.IsNullOrEmpty(keyString))
+            {
+                return new byte[16];
+            }
+
+            byte[] keyBytes = Encoding.UTF8.GetBytes(keyString);
+
+            if (keyBytes.Length == 16)
+            {
+                return keyBytes;
+            }
+            else if (keyBytes.Length < 16)
+            {
+                // Padding with zeros
+                byte[] padded = new byte[16];
+                Array.Copy(keyBytes, padded, keyBytes.Length);
+                return padded;
+            }
+            else
+            {
+                // Truncating to 16 bytes
+                byte[] truncated = new byte[16];
+                Array.Copy(keyBytes, truncated, 16);
+                return truncated;
+            }
+        }
+
+        /// <summary>
+        /// Encrypt data using CFB mode
+        /// </summary>
+        public byte[] Encrypt(byte[] data, string key, byte[]? iv = null)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentException("Data cannot be null or empty");
@@ -28,121 +61,155 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentException("Key cannot be null or empty");
 
-            byte[] iv = GenerateIV();
-            byte[] encrypted = ProcessCFB(data, key, iv, true);
+            // Convert string key to 16-byte array
+            byte[] keyBytes = StringToKeyBytes(key);
 
-            byte[] result = new byte[iv.Length + encrypted.Length];
-            Array.Copy(iv, 0, result, 0, iv.Length);
-            Array.Copy(encrypted, 0, result, iv.Length, encrypted.Length);
+            // Use provided IV or generate new one
+            byte[] actualIV = iv ?? GenerateIV();
+            
+            if (actualIV.Length != BLOCK_SIZE)
+                throw new ArgumentException($"IV must be exactly {BLOCK_SIZE} bytes");
+
+            // Encrypt using CFB mode
+            byte[] encrypted = EncryptCFB(data, keyBytes, actualIV);
+
+            // If IV was provided, don't prepend it to result
+            if (iv != null)
+            {
+                return encrypted;
+            }
+
+            // Otherwise, prepend IV to result (original behavior)
+            byte[] result = new byte[actualIV.Length + encrypted.Length];
+            Array.Copy(actualIV, 0, result, 0, actualIV.Length);
+            Array.Copy(encrypted, 0, result, actualIV.Length, encrypted.Length);
 
             return result;
         }
 
-        public byte[] Decrypt(byte[] data, string key)
+        /// <summary>
+        /// Decrypt data using CFB mode
+        /// </summary>
+        public byte[] Decrypt(byte[] data, string key, byte[]? iv = null)
         {
-            if (data == null || data.Length <= _blockSize)
-                throw new ArgumentException("Data too short or invalid");
+            if (data == null || data.Length == 0)
+                throw new ArgumentException("Data cannot be null or empty");
 
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentException("Key cannot be null or empty");
 
-            byte[] iv = new byte[_blockSize];
-            Array.Copy(data, 0, iv, 0, _blockSize);
+            // Convert string key to 16-byte array
+            byte[] keyBytes = StringToKeyBytes(key);
 
-            byte[] encryptedData = new byte[data.Length - _blockSize];
-            Array.Copy(data, _blockSize, encryptedData, 0, encryptedData.Length);
+            byte[] encryptedData;
+            byte[] actualIV;
 
-            return ProcessCFB(encryptedData, key, iv, false);
+            if (iv != null)
+            {
+                // IV provided explicitly
+                actualIV = iv;
+                encryptedData = data;
+            }
+            else
+            {
+                // IV prepended to data (original behavior)
+                if (data.Length < BLOCK_SIZE)
+                    throw new ArgumentException("Data too short to contain IV");
+
+                actualIV = new byte[BLOCK_SIZE];
+                Array.Copy(data, 0, actualIV, 0, BLOCK_SIZE);
+
+                encryptedData = new byte[data.Length - BLOCK_SIZE];
+                Array.Copy(data, BLOCK_SIZE, encryptedData, 0, encryptedData.Length);
+            }
+
+            if (actualIV.Length != BLOCK_SIZE)
+                throw new ArgumentException($"IV must be exactly {BLOCK_SIZE} bytes");
+
+            return DecryptCFB(encryptedData, keyBytes, actualIV);
         }
 
-        private byte[] ProcessCFB(byte[] data, string key, byte[] iv, bool encrypt)
+        /// <summary>
+        /// CFB encryption implementation
+        /// </summary>
+        private byte[] EncryptCFB(byte[] data, byte[] key, byte[] iv)
         {
-            XXTEAEngine cipher = new XXTEAEngine();
-            byte[] result = new byte[data.Length];
-            byte[] feedbackRegister = new byte[_blockSize];
-            Array.Copy(iv, feedbackRegister, _blockSize);
+            byte[] encrypted = new byte[data.Length];
+            byte[] feedback = new byte[BLOCK_SIZE];
+            Array.Copy(iv, feedback, BLOCK_SIZE);
 
-            int position = 0;
-            while (position < data.Length)
+            for (int i = 0; i < data.Length; i += BLOCK_SIZE)
             {
-                int blockLength = Math.Min(_blockSize, data.Length - position);
+                // Encrypt the feedback register
+                byte[] encryptedFeedback = _xxtea.Encrypt(feedback, key);
 
-                byte[] encryptedFeedback = EncryptBlock(feedbackRegister, cipher, key);
-
-                for (int i = 0; i < blockLength; i++)
+                // XOR with plaintext
+                int blockLength = Math.Min(BLOCK_SIZE, data.Length - i);
+                for (int j = 0; j < blockLength; j++)
                 {
-                    result[position + i] = (byte)(data[position + i] ^ encryptedFeedback[i]);
+                    encrypted[i + j] = (byte)(data[i + j] ^ encryptedFeedback[j]);
                 }
 
-                if (encrypt)
+                // Update feedback register with ciphertext
+                if (blockLength == BLOCK_SIZE)
                 {
-                    Array.Copy(result, position, feedbackRegister, 0, Math.Min(blockLength, _blockSize));
-                    
-                    if (blockLength < _blockSize)
-                    {
-                        Array.Copy(feedbackRegister, blockLength, feedbackRegister, 0, _blockSize - blockLength);
-                        Array.Copy(result, position, feedbackRegister, _blockSize - blockLength, blockLength);
-                    }
+                    Array.Copy(encrypted, i, feedback, 0, BLOCK_SIZE);
                 }
                 else
                 {
-                    Array.Copy(data, position, feedbackRegister, 0, Math.Min(blockLength, _blockSize));
-                    
-                    if (blockLength < _blockSize)
+                    Array.Copy(encrypted, i, feedback, 0, blockLength);
+                    for (int j = blockLength; j < BLOCK_SIZE; j++)
                     {
-                        Array.Copy(feedbackRegister, blockLength, feedbackRegister, 0, _blockSize - blockLength);
-                        Array.Copy(data, position, feedbackRegister, _blockSize - blockLength, blockLength);
+                        feedback[j] = 0;
                     }
                 }
-
-                position += blockLength;
             }
 
-            return result;
+            return encrypted;
         }
 
-        private byte[] EncryptBlock(byte[] block, XXTEAEngine cipher, string key)
+        /// <summary>
+        /// CFB decryption implementation
+        /// </summary>
+        private byte[] DecryptCFB(byte[] data, byte[] key, byte[] iv)
         {
-            try
+            byte[] decrypted = new byte[data.Length];
+            byte[] feedback = new byte[BLOCK_SIZE];
+            Array.Copy(iv, feedback, BLOCK_SIZE);
+
+            for (int i = 0; i < data.Length; i += BLOCK_SIZE)
             {
-                byte[] paddedBlock = new byte[block.Length];
-                Array.Copy(block, paddedBlock, block.Length);
+                // Encrypt the feedback register (same as encrypt)
+                byte[] encryptedFeedback = _xxtea.Encrypt(feedback, key);
 
-                if (paddedBlock.Length < 8)
+                // XOR with ciphertext
+                int blockLength = Math.Min(BLOCK_SIZE, data.Length - i);
+                for (int j = 0; j < blockLength; j++)
                 {
-                    byte[] temp = new byte[8];
-                    Array.Copy(paddedBlock, temp, paddedBlock.Length);
-                    paddedBlock = temp;
+                    decrypted[i + j] = (byte)(data[i + j] ^ encryptedFeedback[j]);
                 }
 
-                byte[] encrypted = cipher.Encrypt(paddedBlock, key);
-                
-                if (encrypted.Length > _blockSize)
+                // Update feedback register with ciphertext
+                if (blockLength == BLOCK_SIZE)
                 {
-                    byte[] trimmed = new byte[_blockSize];
-                    Array.Copy(encrypted, trimmed, _blockSize);
-                    return trimmed;
+                    Array.Copy(data, i, feedback, 0, BLOCK_SIZE);
                 }
-
-                return encrypted;
+                else
+                {
+                    Array.Copy(data, i, feedback, 0, blockLength);
+                    for (int j = blockLength; j < BLOCK_SIZE; j++)
+                    {
+                        feedback[j] = 0;
+                    }
+                }
             }
-            catch
-            {
-                byte[] fallback = new byte[_blockSize];
-                byte[] keyBytes = Encoding.UTF8.GetBytes(key);
-                
-                for (int i = 0; i < _blockSize; i++)
-                {
-                    fallback[i] = (byte)(block[i] ^ keyBytes[i % keyBytes.Length]);
-                }
-                
-                return fallback;
-            }
+
+            return decrypted;
         }
 
         public byte[] GenerateIV()
         {
-            byte[] iv = new byte[_blockSize];
+            byte[] iv = new byte[BLOCK_SIZE];
             using (var rng = RandomNumberGenerator.Create())
             {
                 rng.GetBytes(iv);
@@ -152,12 +219,12 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
 
         public byte[] GenerateIVFromSeed(int seed)
         {
-            byte[] iv = new byte[_blockSize];
+            byte[] iv = new byte[BLOCK_SIZE];
             Random rnd = new Random(seed);
             rnd.NextBytes(iv);
             return iv;
         }
 
-        public int BlockSize => _blockSize;
+        public int BlockSize => BLOCK_SIZE;
     }
 }

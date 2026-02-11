@@ -18,10 +18,11 @@ namespace CryptoFileExchange.Services
         private readonly MetadataService _metadataService;
         private readonly TigerHash _tigerHash;
 
-        // Kljucevi za enkripciju (u produkciji bi bili konfigurisani spolja)
+        // Kljucevi za enkripciju
         private const string ENIGMA_KEY = "FileWatcherEnigmaKey2024";
         private const string XXTEA_KEY = "XXTEAAutoEncryptKey123";
         private const string CFB_KEY = "CFBModeAutoEncrypt456";
+        private const string CFB_IV = "";
 
         // Prag za odluku kada koristiti streaming (50 MB)
         private const long STREAMING_THRESHOLD = 50 * 1024 * 1024;
@@ -47,7 +48,7 @@ namespace CryptoFileExchange.Services
             _isRunning = false;
 
             // Inicijalizuj servise za enkripciju
-            _encryptionService = new EncryptionService(ENIGMA_KEY, XXTEA_KEY, CFB_KEY);
+            _encryptionService = new EncryptionService(ENIGMA_KEY, XXTEA_KEY, CFB_KEY, CFB_IV);
             _metadataService = new MetadataService();
             _tigerHash = new TigerHash();
 

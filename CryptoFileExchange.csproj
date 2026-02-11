@@ -15,4 +15,11 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
 
+  <!-- Exclude DrugaAplikacija folder from build (reference code only) -->
+  <ItemGroup>
+    <Compile Remove="DrugaAplikacija\**" />
+    <EmbeddedResource Remove="DrugaAplikacija\**" />
+    <None Remove="DrugaAplikacija\**" />
+  </ItemGroup>
+
 </Project>

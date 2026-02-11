@@ -5,229 +5,218 @@ using System.Text;
 
 namespace CryptoFileExchange.Algorithms.Symmetric
 {
+    /// <summary>
+    /// Enigma cipher implementation compatible with DrugaAplikacija
+    /// Works with 26-letter alphabet (A-Z), skips all other characters
+    /// </summary>
     internal class EnigmaEngine
     {
-        private readonly List<Rotor> _rotors;
-        private readonly Reflector _reflector;
-        private readonly Plugboard _plugboard;
-        private const int ALPHABET_SIZE = 256;
+        private const string DEFAULT_ROTOR1 = "EKMFLGDQVZNTOWYHXUSPAIBRCJ";
+        private const string DEFAULT_ROTOR2 = "AJDKSIRUXBLHWTMCQGZNPYFVOE";
+        private const string DEFAULT_ROTOR3 = "BDFHJLCPRTXVZNYEIWGAKMUSQO";
+        private const string REFLECTOR = "YRUHQSLDPXNGOKMIEBFZCWVJAT";
+
+        private string _rotor1;
+        private string _rotor2;
+        private string _rotor3;
+        private string _reflector;
+
+        private int _position1 = 0;
+        private int _position2 = 0;
+        private int _position3 = 0;
+
+        private int _ring1 = 0;
+        private int _ring2 = 0;
+        private int _ring3 = 0;
+
+        private Dictionary<char, char> _plugboard;
 
         public EnigmaEngine()
         {
-            _rotors = new List<Rotor>();
-            _reflector = new Reflector();
-            _plugboard = new Plugboard();
+            _rotor1 = DEFAULT_ROTOR1;
+            _rotor2 = DEFAULT_ROTOR2;
+            _rotor3 = DEFAULT_ROTOR3;
+            _reflector = REFLECTOR;
+            _plugboard = new Dictionary<char, char>();
+            ResetPositions();
+            ResetRingSettings();
         }
 
+        /// <summary>
+        /// Encrypt byte array (converts to Base64 first, encrypts, returns UTF-8 bytes)
+        /// </summary>
         public byte[] Encrypt(byte[] data, string key)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentException("Data cannot be null or empty");
 
-            ConfigureFromKey(key);
-            return ProcessData(data);
+            // Convert to Base64 string first
+            string base64Text = Convert.ToBase64String(data);
+            
+            // Encrypt the Base64 string with case-sensitive mode
+            string encryptedText = EncryptString(base64Text, key, caseSensitive: true);
+            
+            // Return as UTF-8 encoded bytes
+            return Encoding.UTF8.GetBytes(encryptedText);
         }
 
+        /// <summary>
+        /// Decrypt byte array (converts from UTF-8, decrypts, converts from Base64)
+        /// </summary>
         public byte[] Decrypt(byte[] data, string key)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentException("Data cannot be null or empty");
 
-            ConfigureFromKey(key);
-            return ProcessData(data);
-        }
-
-        private void ConfigureFromKey(string key)
-        {
-            if (string.IsNullOrEmpty(key))
-                throw new ArgumentException("Key cannot be null or empty");
-
-            _rotors.Clear();
-            
-            byte[] keyBytes = Encoding.UTF8.GetBytes(key);
-            int seed = keyBytes.Sum(b => b);
-
-            Random rnd = new Random(seed);
-            
-            int rotorCount = 3 + (seed % 3);
-            for (int i = 0; i < rotorCount; i++)
+            // Trim trailing null bytes from XXTEA padding
+            int dataLength = data.Length;
+            while (dataLength > 0 && data[dataLength - 1] == 0)
             {
-                _rotors.Add(new Rotor(i, rnd.Next(ALPHABET_SIZE)));
+                dataLength--;
             }
 
-            _plugboard.Configure(keyBytes);
+            byte[] trimmedData = new byte[dataLength];
+            Array.Copy(data, trimmedData, dataLength);
+
+            // Convert UTF-8 bytes to string
+            string encryptedText = Encoding.UTF8.GetString(trimmedData);
+            
+            // Decrypt the string with case-sensitive mode
+            string decryptedText = DecryptString(encryptedText, key, caseSensitive: true);
+            
+            // Trim any trailing null characters from decrypted string (from Enigma preserving non-A-Z chars)
+            decryptedText = decryptedText.TrimEnd('\0');
+            
+            // Convert from Base64 to original bytes
+            try
+            {
+                return Convert.FromBase64String(decryptedText);
+            }
+            catch (FormatException ex)
+            {
+                throw new ArgumentException("Dekriptovani tekst nije validan Base64 format. Proverite kljuc ili integritet fajla.", ex);
+            }
         }
 
-        private byte[] ProcessData(byte[] data)
+        /// <summary>
+        /// Encrypt string (main encryption logic)
+        /// </summary>
+        private string EncryptString(string plaintext, string key, bool caseSensitive = false)
         {
-            byte[] result = new byte[data.Length];
+            ResetPositions();
+            SetRotorPositions(key);
 
-            for (int i = 0; i < data.Length; i++)
+            StringBuilder result = new StringBuilder();
+            string text = caseSensitive ? plaintext : plaintext.ToUpper();
+
+            foreach (char c in text)
             {
-                byte input = data[i];
-                
-                input = _plugboard.Transform(input);
-                
-                foreach (var rotor in _rotors)
+                // Only encrypt A-Z characters, skip all others
+                if (!(c >= 'A' && c <= 'Z'))
                 {
-                    input = rotor.Forward(input);
+                    result.Append(c);
+                    continue;
                 }
-                
-                input = _reflector.Reflect(input);
-                
-                for (int j = _rotors.Count - 1; j >= 0; j--)
-                {
-                    input = _rotors[j].Backward(input);
-                }
-                
-                input = _plugboard.Transform(input);
-                
-                result[i] = input;
-                
+
                 RotateRotors();
+
+                char ch = c;
+
+                // 1. Plugboard (before entering rotors)
+                if (_plugboard.ContainsKey(ch))
+                {
+                    ch = _plugboard[ch];
+                }
+
+                // 2. Forward through rotors
+                ch = RotorForward(_rotor3, ch, _position3, _ring3);
+                ch = RotorForward(_rotor2, ch, _position2, _ring2);
+                ch = RotorForward(_rotor1, ch, _position1, _ring1);
+
+                // 3. Reflector
+                ch = _reflector[ch - 'A'];
+
+                // 4. Backward through rotors
+                ch = RotorBackward(_rotor1, ch, _position1, _ring1);
+                ch = RotorBackward(_rotor2, ch, _position2, _ring2);
+                ch = RotorBackward(_rotor3, ch, _position3, _ring3);
+
+                // 5. Plugboard (after exiting rotors)
+                if (_plugboard.ContainsKey(ch))
+                {
+                    ch = _plugboard[ch];
+                }
+
+                result.Append(ch);
             }
 
-            return result;
+            return result.ToString();
+        }
+
+        /// <summary>
+        /// Decrypt string (Enigma is symmetric, so same as encrypt)
+        /// </summary>
+        private string DecryptString(string ciphertext, string key, bool caseSensitive = false)
+        {
+            return EncryptString(ciphertext, key, caseSensitive);
+        }
+
+        private char RotorForward(string rotor, char input, int position, int ring)
+        {
+            int offset = (input - 'A' + position - ring + 26) % 26;
+            char output = rotor[offset];
+            int result = (output - 'A' - position + ring + 26) % 26;
+            return (char)('A' + result);
+        }
+
+        private char RotorBackward(string rotor, char input, int position, int ring)
+        {
+            int offset = (input - 'A' + position - ring + 26) % 26;
+            int index = rotor.IndexOf((char)('A' + offset));
+            int result = (index - position + ring + 26) % 26;
+            return (char)('A' + result);
         }
 
         private void RotateRotors()
         {
-            bool rotate = true;
-            foreach (var rotor in _rotors)
+            _position1 = (_position1 + 1) % 26;
+            if (_position1 == 0)
             {
-                if (rotate)
-                {
-                    rotate = rotor.Rotate();
-                }
-                else
-                {
-                    break;
-                }
+                _position2 = (_position2 + 1) % 26;
+                if (_position2 == 0)
+                    _position3 = (_position3 + 1) % 26;
             }
         }
 
-        private class Rotor
+        private void SetRotorPositions(string key)
         {
-            private readonly byte[] _wiring;
-            private readonly byte[] _inverseWiring;
-            private int _position;
-            private readonly int _notch;
-
-            public Rotor(int rotorId, int initialPosition)
+            if (string.IsNullOrEmpty(key) || key.Length < 3)
             {
-                _wiring = new byte[ALPHABET_SIZE];
-                _inverseWiring = new byte[ALPHABET_SIZE];
-                _position = initialPosition % ALPHABET_SIZE;
-                _notch = (rotorId * 37 + 67) % ALPHABET_SIZE;
-
-                InitializeWiring(rotorId);
+                _position1 = 0;
+                _position2 = 0;
+                _position3 = 0;
+                return;
             }
 
-            private void InitializeWiring(int rotorId)
-            {
-                Random rnd = new Random(rotorId * 1000 + 12345);
-                List<byte> available = Enumerable.Range(0, ALPHABET_SIZE).Select(x => (byte)x).ToList();
-
-                for (int i = 0; i < ALPHABET_SIZE; i++)
-                {
-                    int index = rnd.Next(available.Count);
-                    _wiring[i] = available[index];
-                    _inverseWiring[available[index]] = (byte)i;
-                    available.RemoveAt(index);
-                }
-            }
-
-            public byte Forward(byte input)
-            {
-                int shifted = (input + _position) % ALPHABET_SIZE;
-                int output = _wiring[shifted];
-                return (byte)((output - _position + ALPHABET_SIZE) % ALPHABET_SIZE);
-            }
-
-            public byte Backward(byte input)
-            {
-                int shifted = (input + _position) % ALPHABET_SIZE;
-                int output = _inverseWiring[shifted];
-                return (byte)((output - _position + ALPHABET_SIZE) % ALPHABET_SIZE);
-            }
-
-            public bool Rotate()
-            {
-                _position = (_position + 1) % ALPHABET_SIZE;
-                return _position == _notch;
-            }
+            key = key.ToUpper();
+            _position1 = (key[0] - 'A' + 26) % 26;
+            _position2 = (key.Length > 1 ? (key[1] - 'A' + 26) % 26 : 0);
+            _position3 = (key.Length > 2 ? (key[2] - 'A' + 26) % 26 : 0);
         }
 
-        private class Reflector
+        private void ResetPositions()
         {
-            private readonly byte[] _wiring;
-
-            public Reflector()
-            {
-                _wiring = new byte[ALPHABET_SIZE];
-                InitializeWiring();
-            }
-
-            private void InitializeWiring()
-            {
-                Random rnd = new Random(54321);
-                List<byte> available = Enumerable.Range(0, ALPHABET_SIZE).Select(x => (byte)x).ToList();
-
-                for (int i = 0; i < ALPHABET_SIZE; i += 2)
-                {
-                    if (available.Count < 2) break;
-
-                    int index1 = rnd.Next(available.Count);
-                    byte val1 = available[index1];
-                    available.RemoveAt(index1);
-
-                    int index2 = rnd.Next(available.Count);
-                    byte val2 = available[index2];
-                    available.RemoveAt(index2);
-
-                    _wiring[val1] = val2;
-                    _wiring[val2] = val1;
-                }
-            }
-
-            public byte Reflect(byte input)
-            {
-                return _wiring[input];
-            }
+            _position1 = 0;
+            _position2 = 0;
+            _position3 = 0;
         }
 
-        private class Plugboard
+        private void ResetRingSettings()
         {
-            private readonly Dictionary<byte, byte> _connections;
-
-            public Plugboard()
-            {
-                _connections = new Dictionary<byte, byte>();
-            }
-
-            public void Configure(byte[] keyBytes)
-            {
-                _connections.Clear();
-
-                int pairCount = Math.Min(10, keyBytes.Length / 2);
-                
-                for (int i = 0; i < pairCount; i++)
-                {
-                    byte first = keyBytes[i * 2];
-                    byte second = keyBytes[(i * 2 + 1) % keyBytes.Length];
-
-                    if (!_connections.ContainsKey(first) && !_connections.ContainsKey(second) && first != second)
-                    {
-                        _connections[first] = second;
-                        _connections[second] = first;
-                    }
-                }
-            }
-
-            public byte Transform(byte input)
-            {
-                return _connections.TryGetValue(input, out byte output) ? output : input;
-            }
+            _ring1 = 0;
+            _ring2 = 0;
+            _ring3 = 0;
         }
     }
 }
+

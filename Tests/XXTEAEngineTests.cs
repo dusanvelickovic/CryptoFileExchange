@@ -8,6 +8,38 @@ namespace CryptoFileExchange.Tests
     {
         protected override string GetTestSuiteName() => "XXTEAEngine";
 
+        /// <summary>
+        /// Helper method: Convert string to 16-byte key array (padding/truncating)
+        /// </summary>
+        private byte[] StringToKeyBytes(string keyString)
+        {
+            if (string.IsNullOrEmpty(keyString))
+            {
+                return new byte[16];
+            }
+
+            byte[] keyBytes = Encoding.UTF8.GetBytes(keyString);
+
+            if (keyBytes.Length == 16)
+            {
+                return keyBytes;
+            }
+            else if (keyBytes.Length < 16)
+            {
+                // Padding with zeros
+                byte[] padded = new byte[16];
+                Array.Copy(keyBytes, padded, keyBytes.Length);
+                return padded;
+            }
+            else
+            {
+                // Truncating to 16 bytes
+                byte[] truncated = new byte[16];
+                Array.Copy(keyBytes, truncated, 16);
+                return truncated;
+            }
+        }
+
         public static (int passed, int failed) RunAllTests()
         {
             var instance = new XXTEAEngineTests();
@@ -33,7 +65,7 @@ namespace CryptoFileExchange.Tests
             {
                 XXTEAEngine xxtea = new XXTEAEngine();
                 string testData = "XXTEA block cipher test message!";
-                string key = "SecretKey123";
+                byte[] key = StringToKeyBytes("SecretKey123");
 
                 byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
                 byte[] encrypted = xxtea.Encrypt(plainBytes, key);
@@ -68,7 +100,7 @@ namespace CryptoFileExchange.Tests
             {
                 XXTEAEngine xxtea = new XXTEAEngine();
                 byte[] emptyData = new byte[0];
-                string key = "TestKey";
+                byte[] key = StringToKeyBytes("TestKey");
 
                 xxtea.Encrypt(emptyData, key);
                 Fail("Should throw exception for empty data");
@@ -91,8 +123,8 @@ namespace CryptoFileExchange.Tests
             {
                 XXTEAEngine xxtea = new XXTEAEngine();
                 string testData = "Secret XXTEA message";
-                string key1 = "CorrectKey";
-                string key2 = "WrongKey";
+                byte[] key1 = StringToKeyBytes("CorrectKey");
+                byte[] key2 = StringToKeyBytes("WrongKey");
 
                 byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
                 byte[] encrypted = xxtea.Encrypt(plainBytes, key1);
@@ -137,7 +169,7 @@ namespace CryptoFileExchange.Tests
                     sb.Append($"Block {i}: XXTEA is a block cipher algorithm. ");
                 }
                 string testData = sb.ToString();
-                string key = "LargeDataTestKey";
+                byte[] key = StringToKeyBytes("LargeDataTestKey");
 
                 byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
                 byte[] encrypted = xxtea.Encrypt(plainBytes, key);
@@ -172,7 +204,7 @@ namespace CryptoFileExchange.Tests
                 {
                     binaryData[i] = (byte)(i * 2);
                 }
-                string key = "BinaryTestKey";
+                byte[] key = StringToKeyBytes("BinaryTestKey");
 
                 byte[] encrypted = xxtea.Encrypt(binaryData, key);
                 byte[] decrypted = xxtea.Decrypt(encrypted, key);
@@ -217,7 +249,7 @@ namespace CryptoFileExchange.Tests
             try
             {
                 XXTEAEngine xxtea = new XXTEAEngine();
-                string key = "PaddingTestKey";
+                byte[] key = StringToKeyBytes("PaddingTestKey");
                 bool allPassed = true;
 
                 for (int length = 5; length <= 25; length++)

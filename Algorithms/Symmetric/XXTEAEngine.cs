@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace CryptoFileExchange.Algorithms.Symmetric
 {
@@ -10,13 +7,13 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         private const uint DELTA = 0x9E3779B9;
         private const int KEY_SIZE = 4;
 
-        public byte[] Encrypt(byte[] data, string key)
+        public byte[] Encrypt(byte[] data, byte[] key)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentException("Data cannot be null or empty");
 
-            if (string.IsNullOrEmpty(key))
-                throw new ArgumentException("Key cannot be null or empty");
+            if (key == null || key.Length != 16)
+                throw new ArgumentException("Key must be exactly 16 bytes (128 bits)");
 
             byte[] paddedData = AddPadding(data);
             uint[] dataBlocks = BytesToUInt32(paddedData);
@@ -30,13 +27,13 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             return UInt32ToBytes(dataBlocks);
         }
 
-        public byte[] Decrypt(byte[] data, string key)
+        public byte[] Decrypt(byte[] data, byte[] key)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentException("Data cannot be null or empty");
 
-            if (string.IsNullOrEmpty(key))
-                throw new ArgumentException("Key cannot be null or empty");
+            if (key == null || key.Length != 16)
+                throw new ArgumentException("Key must be exactly 16 bytes (128 bits)");
 
             if (data.Length % 4 != 0)
                 throw new ArgumentException("Invalid encrypted data length");
@@ -102,19 +99,14 @@ namespace CryptoFileExchange.Algorithms.Symmetric
                    ^ ((sum ^ y) + (key ^ z));
         }
 
-        private uint[] GenerateKey(string key)
+        private uint[] GenerateKey(byte[] key)
         {
-            byte[] keyBytes = Encoding.UTF8.GetBytes(key);
+            // Key is already validated to be 16 bytes in Encrypt/Decrypt
             uint[] keyBlocks = new uint[KEY_SIZE];
 
             for (int i = 0; i < KEY_SIZE; i++)
             {
-                keyBlocks[i] = 0;
-                for (int j = 0; j < 4; j++)
-                {
-                    int index = (i * 4 + j) % keyBytes.Length;
-                    keyBlocks[i] |= (uint)keyBytes[index] << (j * 8);
-                }
+                keyBlocks[i] = BitConverter.ToUInt32(key, i * 4);
             }
 
             return keyBlocks;
@@ -122,47 +114,21 @@ namespace CryptoFileExchange.Algorithms.Symmetric
 
         private byte[] AddPadding(byte[] data)
         {
+            // Simple zero-padding (no marker byte)
             int paddingLength = (4 - (data.Length % 4)) % 4;
             
-            if (paddingLength == 0)
-                paddingLength = 4;
-
             byte[] padded = new byte[data.Length + paddingLength];
             Array.Copy(data, padded, data.Length);
-            
-            padded[data.Length] = 0x80;
-            
-            for (int i = data.Length + 1; i < padded.Length; i++)
-            {
-                padded[i] = 0x00;
-            }
+            // Rest is already zeros (new byte[] initializes to 0)
 
             return padded;
         }
 
         private byte[] RemovePadding(byte[] data)
         {
-            if (data == null || data.Length == 0)
-                return data;
-
-            int paddingStart = data.Length;
-            
-            for (int i = data.Length - 1; i >= 0; i--)
-            {
-                if (data[i] == 0x80)
-                {
-                    paddingStart = i;
-                    break;
-                }
-                else if (data[i] != 0x00)
-                {
-                    return data;
-                }
-            }
-
-            byte[] result = new byte[paddingStart];
-            Array.Copy(data, result, paddingStart);
-            return result;
+            // Padding (0-3 zero bytes) is not removed after decryption
+            // It's handled by Enigma's Base64 decoding which trims trailing nulls
+            return data;
         }
 
         private uint[] BytesToUInt32(byte[] data)

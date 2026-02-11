@@ -20,7 +20,7 @@ namespace CryptoFileExchange.Tests
             instance.TestDifferentKeys();
             instance.TestLargeData();
             instance.TestIVUniqueness();
-            instance.TestDifferentBlockSizes();
+            // TestDifferentBlockSizes removed - CFBMode now uses fixed 16-byte blocks (DrugaAplikacija compatibility)
 
             instance.PrintSummary();
             return instance.GetResults();
@@ -212,54 +212,6 @@ namespace CryptoFileExchange.Tests
             }
             Console.WriteLine();
         }
-
-        private void TestDifferentBlockSizes()
-        {
-            Console.WriteLine("Test 6: Different Block Sizes");
-            try
-            {
-                int[] blockSizes = { 8, 16, 32 };
-                string testData = "Testing different block sizes for CFB mode";
-                string key = "BlockSizeTestKey";
-                bool allPassed = true;
-
-                foreach (int blockSize in blockSizes)
-                {
-                    try
-                    {
-                        CFBMode cfb = new CFBMode(blockSize);
-                        byte[] plainBytes = Encoding.UTF8.GetBytes(testData);
-                        byte[] encrypted = cfb.Encrypt(plainBytes, key);
-                        byte[] decrypted = cfb.Decrypt(encrypted, key);
-                        string result = Encoding.UTF8.GetString(decrypted);
-
-                        if (result != testData)
-                        {
-                            allPassed = false;
-                            Console.WriteLine($"   Failed for block size {blockSize}");
-                        }
-                    }
-                    catch
-                    {
-                        allPassed = false;
-                        Console.WriteLine($"   Exception for block size {blockSize}");
-                    }
-                }
-
-                if (allPassed)
-                {
-                    Pass("All block sizes (8, 16, 32) work correctly");
-                }
-                else
-                {
-                    Fail("Some block sizes failed");
-                }
-            }
-            catch (Exception ex)
-            {
-                Fail($"Exception: {ex.Message}");
-            }
-            Console.WriteLine();
-        }
     }
 }
+
