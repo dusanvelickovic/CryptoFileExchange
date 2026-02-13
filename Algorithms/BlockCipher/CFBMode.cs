@@ -7,7 +7,7 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
 {
     /// <summary>
     /// CFB Mode (Cipher Feedback) implementacija
-    /// CFB mod pretavara blok šifru u stream šifru
+    /// CFB mod pretvara blok šifru u stream šifru
     /// </summary>
     internal class CFBMode
     {
