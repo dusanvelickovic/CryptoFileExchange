@@ -6,7 +6,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
     {
         // Delta konstanta bazirana na zlatnom preseku (golden ratio)
         private const uint DELTA = 0x9E3779B9;
-        // Broj blokova ključa (4 bloka po 32 bita = 128 bita ukupno)
+        // Broj blokova kljuca (4 bloka po 32 bita = 128 bita ukupno)
         private const int KEY_SIZE = 4;
 
         public byte[] Encrypt(byte[] data, byte[] key)
@@ -17,13 +17,13 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             if (key == null || key.Length != 16)
                 throw new ArgumentException("Key must be exactly 16 bytes (128 bits)");
 
-            // Priprema podataka: dodavanje paddinga da dužina bude deljiva sa 4
+            // Priprema podataka: dodavanje paddinga da duzina bude deljiva sa 4
             byte[] paddedData = AddPadding(data);
             
             // Konverzija u niz 32-bitnih unsigned integera
             uint[] dataBlocks = BytesToUInt32(paddedData);
             
-            // Podela ključa od 16 bajtova u 4 bloka po 32 bita
+            // Podela kljuca od 16 bajtova u 4 bloka po 32 bita
             uint[] keyBlocks = GenerateKey(key);
 
             if (dataBlocks.Length < 2)
@@ -49,7 +49,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             // Konverzija bajtova u 32-bitne blokove
             uint[] dataBlocks = BytesToUInt32(data);
             
-            // Podela ključa od 16 bajtova u 4 bloka po 32 bita
+            // Podela kljuca od 16 bajtova u 4 bloka po 32 bita
             uint[] keyBlocks = GenerateKey(key);
 
             if (dataBlocks.Length < 2)
@@ -72,20 +72,20 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             uint y;
             uint sum = 0; // Akumulator za delta vrednost
             
-            // Broj rundi: q = 6 + 52/n (više rundi za manje blokove)
+            // Broj rundi: q = 6 + 52/n (vise rundi za manje blokove)
             int q = 6 + 52 / n;
 
-            // Izvršavanje rundi enkripcije
+            // Izvrsavanje rundi enkripcije
             while (q-- > 0)
             {
-                // Povećavanje sume za delta u svakoj rundi
+                // Povecavanje sume za delta u svakoj rundi
                 sum += DELTA;
-                uint e = (sum >> 2) & 3; // Deo sume za selekciju ključa
+                uint e = (sum >> 2) & 3; // Deo sume za selekciju kljuca
 
                 // Procesiranje svakog bloka
                 for (int p = 0; p < n; p++)
                 {
-                    y = v[(p + 1) % n]; // Sledeći blok (zavisnost)
+                    y = v[(p + 1) % n]; // Sledeci blok (zavisnost)
                     
                     // MX funkcija za permutacije i substitucije, rezultat se dodaje trenutnom bloku
                     z = v[p] += MX(z, y, sum, k[p & 3 ^ e], p, e);
@@ -103,13 +103,13 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             // Broj rundi: isti kao kod enkripcije
             int q = 6 + 52 / n;
             
-            // Suma se računa kao q * DELTA i smanjuje se
+            // Suma se racuna kao q * DELTA i smanjuje se
             uint sum = (uint)(q * DELTA);
 
-            // Izvršavanje rundi dekripcije unazad
+            // Izvrsavanje rundi dekripcije unazad
             while (sum != 0)
             {
-                uint e = (sum >> 2) & 3; // Deo sume za selekciju ključa
+                uint e = (sum >> 2) & 3; // Deo sume za selekciju kljuca
 
                 // Prolazak kroz blokove unazad
                 for (int p = n - 1; p >= 0; p--)
@@ -125,12 +125,12 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             }
         }
 
-        // MX funkcija: kombinacija shift operacija, XOR operacija i mešanja sa sumom i ključem
+        // MX funkcija: kombinacija shift operacija, XOR operacija i mesanja sa sumom i kljucem
         // Formula: ((z>>5 XOR y<<2) + (y>>3 XOR z<<4)) XOR ((sum XOR y) + (key XOR z))
         private uint MX(uint z, uint y, uint sum, uint key, int p, uint e)
         {
             // Shift operacije (pomeranje bitova) i XOR između susednih blokova
-            // Mešanje sa sumom i ključem za dodatnu difuziju
+            // Mesanje sa sumom i ključem za dodatnu difuziju
             return (((z >> 5) ^ (y << 2)) + ((y >> 3) ^ (z << 4))) 
                    ^ ((sum ^ y) + (key ^ z));
         }
@@ -138,7 +138,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         // Podela ključa od 16 bajtova u 4 bloka po 32 bita
         private uint[] GenerateKey(byte[] key)
         {
-            // Ključ je već validiran da bude 16 bajtova u Encrypt/Decrypt metodama
+            // Kljuc je vec validiran da bude 16 bajtova u Encrypt/Decrypt metodama
             uint[] keyBlocks = new uint[KEY_SIZE];
 
             // Konverzija svakog 4-bajtnog segmenta u 32-bitni unsigned integer
@@ -150,16 +150,16 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             return keyBlocks;
         }
 
-        // Dodavanje paddinga: dužina mora biti deljiva sa 4 (za 32-bitne blokove)
+        // Dodavanje paddinga: duzina mora biti deljiva sa 4 (za 32-bitne blokove)
         private byte[] AddPadding(byte[] data)
         {
-            // Računanje potrebnog paddinga (0-3 bajta)
+            // Racunanje potrebnog paddinga (0-3 bajta)
             int paddingLength = (4 - (data.Length % 4)) % 4;
             
             // Kreiranje novog niza sa paddingom
             byte[] padded = new byte[data.Length + paddingLength];
             Array.Copy(data, padded, data.Length);
-            // Preostali bajtovi su već nule (new byte[] inicijalizuje na 0)
+            // Preostali bajtovi su vec nule (new byte[] inicijalizuje na 0)
 
             return padded;
         }
@@ -168,7 +168,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         private byte[] RemovePadding(byte[] data)
         {
             // Padding (0-3 nula bajta) se ne uklanja nakon dekripcije
-            // To se rešava Base64 dekodiranjem u Enigma koje uklanja trailing nule
+            // To se resava Base64 dekodiranjem u Enigma koje uklanja trailing nule
             return data;
         }
 
