@@ -6,12 +6,13 @@ using CryptoFileExchange.Algorithms.Symmetric;
 namespace CryptoFileExchange.Algorithms.BlockCipher
 {
     /// <summary>
-    /// CFB Mode (Cipher Feedback) implementation
+    /// CFB Mode (Cipher Feedback) implementacija
+    /// CFB mod pretavara blok šifru u stream šifru
     /// </summary>
     internal class CFBMode
     {
         private readonly XXTEAEngine _xxtea;
-        private const int BLOCK_SIZE = 16;
+        private const int BLOCK_SIZE = 16; // Veličina bloka: 16 bajtova (128 bita)
 
         public CFBMode()
         {
@@ -19,7 +20,7 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
         }
 
         /// <summary>
-        /// Convert string to 16-byte key array (padding/truncating)
+        /// Konverzija stringa u 16-bajtni ključ (padding ili skraćivanje)
         /// </summary>
         private byte[] StringToKeyBytes(string keyString)
         {
@@ -36,14 +37,14 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
             }
             else if (keyBytes.Length < 16)
             {
-                // Padding with zeros
+                // Padding nulama do 16 bajtova
                 byte[] padded = new byte[16];
                 Array.Copy(keyBytes, padded, keyBytes.Length);
                 return padded;
             }
             else
             {
-                // Truncating to 16 bytes
+                // Skraćivanje na 16 bajtova
                 byte[] truncated = new byte[16];
                 Array.Copy(keyBytes, truncated, 16);
                 return truncated;
@@ -51,7 +52,7 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
         }
 
         /// <summary>
-        /// Encrypt data using CFB mode
+        /// Enkripcija podataka u CFB modu
         /// </summary>
         public byte[] Encrypt(byte[] data, string key, byte[]? iv = null)
         {
@@ -61,25 +62,26 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentException("Key cannot be null or empty");
 
-            // Convert string key to 16-byte array
+            // Konverzija string ključa u 16-bajtni niz
             byte[] keyBytes = StringToKeyBytes(key);
 
-            // Use provided IV or generate new one
+            // Generisanje ili korišćenje postojećeg IV (Initialization Vector)
+            // IV mora biti jedinstven za svaku enkripciju
             byte[] actualIV = iv ?? GenerateIV();
             
             if (actualIV.Length != BLOCK_SIZE)
                 throw new ArgumentException($"IV must be exactly {BLOCK_SIZE} bytes");
 
-            // Encrypt using CFB mode
+            // Enkripcija koristeći CFB mod
             byte[] encrypted = EncryptCFB(data, keyBytes, actualIV);
 
-            // If IV was provided, don't prepend it to result
+            // Ako je IV prosleđen, ne dodaje se u rezultat
             if (iv != null)
             {
                 return encrypted;
             }
 
-            // Otherwise, prepend IV to result (original behavior)
+            // Inače, dodavanje random IV na početak rezultata
             byte[] result = new byte[actualIV.Length + encrypted.Length];
             Array.Copy(actualIV, 0, result, 0, actualIV.Length);
             Array.Copy(encrypted, 0, result, actualIV.Length, encrypted.Length);
@@ -88,7 +90,7 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
         }
 
         /// <summary>
-        /// Decrypt data using CFB mode
+        /// Dekripcija podataka u CFB modu
         /// </summary>
         public byte[] Decrypt(byte[] data, string key, byte[]? iv = null)
         {
@@ -98,7 +100,7 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
             if (string.IsNullOrEmpty(key))
                 throw new ArgumentException("Key cannot be null or empty");
 
-            // Convert string key to 16-byte array
+            // Konverzija string ključa u 16-bajtni niz
             byte[] keyBytes = StringToKeyBytes(key);
 
             byte[] encryptedData;
@@ -106,13 +108,13 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
 
             if (iv != null)
             {
-                // IV provided explicitly
+                // IV prosleđen eksplicitno
                 actualIV = iv;
                 encryptedData = data;
             }
             else
             {
-                // IV prepended to data (original behavior)
+                // Ekstrahovanje IV iz prvih 16 bajtova podataka
                 if (data.Length < BLOCK_SIZE)
                     throw new ArgumentException("Data too short to contain IV");
 
@@ -130,27 +132,30 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
         }
 
         /// <summary>
-        /// CFB encryption implementation
+        /// CFB enkripcija: lanac zavisnosti gde svaki blok zavisi od prethodnog ciphertexta
         /// </summary>
         private byte[] EncryptCFB(byte[] data, byte[] key, byte[] iv)
         {
             byte[] encrypted = new byte[data.Length];
             byte[] feedback = new byte[BLOCK_SIZE];
-            Array.Copy(iv, feedback, BLOCK_SIZE);
+            Array.Copy(iv, feedback, BLOCK_SIZE); // Inicijalizacija sa IV
 
             for (int i = 0; i < data.Length; i += BLOCK_SIZE)
             {
-                // Encrypt the feedback register
+                // Enkripcija feedback registra (ne plaintext-a!)
+                // Prva iteracija: IV se enkriptuje XXTEA-om
+                // Naredne iteracije: prethodni ciphertext blok se enkriptuje
                 byte[] encryptedFeedback = _xxtea.Encrypt(feedback, key);
 
-                // XOR with plaintext
+                // XOR operacija: rezultat XOR sa blokom plaintexta
+                // Ključna operacija u CFB modu, reverzibilna: (A XOR B) XOR B = A
                 int blockLength = Math.Min(BLOCK_SIZE, data.Length - i);
                 for (int j = 0; j < blockLength; j++)
                 {
                     encrypted[i + j] = (byte)(data[i + j] ^ encryptedFeedback[j]);
                 }
 
-                // Update feedback register with ciphertext
+                // Ažuriranje feedback registra sa ciphertextom (lanac zavisnosti)
                 if (blockLength == BLOCK_SIZE)
                 {
                     Array.Copy(encrypted, i, feedback, 0, BLOCK_SIZE);
@@ -169,27 +174,30 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
         }
 
         /// <summary>
-        /// CFB decryption implementation
+        /// CFB dekripcija: ista logika kao enkripcija (feedback se ENKRIPTUJE, ne dekriptuje!)
         /// </summary>
         private byte[] DecryptCFB(byte[] data, byte[] key, byte[] iv)
         {
             byte[] decrypted = new byte[data.Length];
             byte[] feedback = new byte[BLOCK_SIZE];
-            Array.Copy(iv, feedback, BLOCK_SIZE);
+            Array.Copy(iv, feedback, BLOCK_SIZE); // Inicijalizacija sa IV
 
             for (int i = 0; i < data.Length; i += BLOCK_SIZE)
             {
-                // Encrypt the feedback register (same as encrypt)
+                // Enkripcija feedback registra (isti proces kao kod enkripcije!)
+                // Prva iteracija: IV se enkriptuje (NE dekriptuje!)
+                // Naredne iteracije: prethodni ciphertext blok se enkriptuje
                 byte[] encryptedFeedback = _xxtea.Encrypt(feedback, key);
 
-                // XOR with ciphertext
+                // XOR operacija: rezultat XOR sa blokom ciphertexta
+                // Zbog osobine XOR: (A XOR B) XOR B = A, dobijamo originalni plaintext
                 int blockLength = Math.Min(BLOCK_SIZE, data.Length - i);
                 for (int j = 0; j < blockLength; j++)
                 {
                     decrypted[i + j] = (byte)(data[i + j] ^ encryptedFeedback[j]);
                 }
 
-                // Update feedback register with ciphertext
+                // Ažuriranje feedback registra sa ciphertextom (lanac zavisnosti)
                 if (blockLength == BLOCK_SIZE)
                 {
                     Array.Copy(data, i, feedback, 0, BLOCK_SIZE);
@@ -207,6 +215,7 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
             return decrypted;
         }
 
+        // Generisanje random IV (Initialization Vector) od 16 bajtova
         public byte[] GenerateIV()
         {
             byte[] iv = new byte[BLOCK_SIZE];
@@ -217,6 +226,7 @@ namespace CryptoFileExchange.Algorithms.BlockCipher
             return iv;
         }
 
+        // Generisanje determinističkog IV iz seed-a (za testiranje)
         public byte[] GenerateIVFromSeed(int seed)
         {
             byte[] iv = new byte[BLOCK_SIZE];

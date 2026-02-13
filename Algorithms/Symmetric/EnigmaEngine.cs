@@ -6,14 +6,23 @@ using System.Text;
 namespace CryptoFileExchange.Algorithms.Symmetric
 {
     /// <summary>
-    /// Enigma cipher implementation compatible with DrugaAplikacija
-    /// Works with 26-letter alphabet (A-Z), skips all other characters
+    /// Enigma šifarski algoritam kompatibilan sa DrugaAplikacija
+    /// Radi sa 26-slovnom azbukom (A-Z), preskače sve druge karaktere
+    /// 
+    /// Komponente:
+    /// - 3 Rotora: svaki sa 26-slovnom supstitucijom
+    /// - Reflektor: zamena slova - enkripcija i dekripcija su isti proces
+    /// - Plugboard: opciona razmena parova slova
+    /// - Ring Settings: pomeranje internal wiring rotora
     /// </summary>
     internal class EnigmaEngine
     {
+        // Predefinisane supstitucione tabele za tri rotora
         private const string DEFAULT_ROTOR1 = "EKMFLGDQVZNTOWYHXUSPAIBRCJ";
         private const string DEFAULT_ROTOR2 = "AJDKSIRUXBLHWTMCQGZNPYFVOE";
         private const string DEFAULT_ROTOR3 = "BDFHJLCPRTXVZNYEIWGAKMUSQO";
+        
+        // Reflektor: zamena slova (omogućava simetričnu enkripciju/dekripciju)
         private const string REFLECTOR = "YRUHQSLDPXNGOKMIEBFZCWVJAT";
 
         private string _rotor1;
@@ -21,14 +30,17 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         private string _rotor3;
         private string _reflector;
 
+        // Trenutne pozicije rotora (0-25, rotiraju se tokom enkripcije)
         private int _position1 = 0;
         private int _position2 = 0;
         private int _position3 = 0;
 
+        // Ring settings: pomeranje internal wiring rotora (0-25)
         private int _ring1 = 0;
         private int _ring2 = 0;
         private int _ring3 = 0;
 
+        // Plugboard: opciona razmena parova slova pre i posle rotora
         private Dictionary<char, char> _plugboard;
 
         public EnigmaEngine()
@@ -43,32 +55,34 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         }
 
         /// <summary>
-        /// Encrypt byte array (converts to Base64 first, encrypts, returns UTF-8 bytes)
+        /// Enkripcija niza bajtova
+        /// Proces: binarni podaci → Base64 string → Enigma enkripcija → UTF-8 bajtovi
         /// </summary>
         public byte[] Encrypt(byte[] data, string key)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentException("Data cannot be null or empty");
 
-            // Convert to Base64 string first
+            // Konverzija binarnih podataka u Base64 string (Case-Sensitive mode)
             string base64Text = Convert.ToBase64String(data);
             
-            // Encrypt the Base64 string with case-sensitive mode
+            // Enkripcija Base64 stringa koristeći Enigma mehanizam
             string encryptedText = EncryptString(base64Text, key, caseSensitive: true);
             
-            // Return as UTF-8 encoded bytes
+            // Vraćanje kao UTF-8 bajtovi
             return Encoding.UTF8.GetBytes(encryptedText);
         }
 
         /// <summary>
-        /// Decrypt byte array (converts from UTF-8, decrypts, converts from Base64)
+        /// Dekripcija niza bajtova
+        /// Proces: UTF-8 bajtovi → string → Enigma dekripcija → parsiranje Base64 → originalni bajtovi
         /// </summary>
         public byte[] Decrypt(byte[] data, string key)
         {
             if (data == null || data.Length == 0)
                 throw new ArgumentException("Data cannot be null or empty");
 
-            // Trim trailing null bytes from XXTEA padding
+            // Uklanjanje trailing null bajtova iz XXTEA paddinga
             int dataLength = data.Length;
             while (dataLength > 0 && data[dataLength - 1] == 0)
             {
@@ -78,16 +92,16 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             byte[] trimmedData = new byte[dataLength];
             Array.Copy(data, trimmedData, dataLength);
 
-            // Convert UTF-8 bytes to string
+            // Konverzija UTF-8 bajtova u string
             string encryptedText = Encoding.UTF8.GetString(trimmedData);
             
-            // Decrypt the string with case-sensitive mode
+            // Dekripcija stringa kroz Enigma (simetričan proces kao enkripcija)
             string decryptedText = DecryptString(encryptedText, key, caseSensitive: true);
             
-            // Trim any trailing null characters from decrypted string (from Enigma preserving non-A-Z chars)
+            // Uklanjanje trailing null karaktera iz dekriptovanog stringa
             decryptedText = decryptedText.TrimEnd('\0');
             
-            // Convert from Base64 to original bytes
+            // Parsiranje Base64 i vraćanje originalnih bajtova
             try
             {
                 return Convert.FromBase64String(decryptedText);
@@ -99,49 +113,51 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         }
 
         /// <summary>
-        /// Encrypt string (main encryption logic)
+        /// Glavna enkripciona logika: prolazak karaktera kroz rotore, reflektor, i nazad
         /// </summary>
         private string EncryptString(string plaintext, string key, bool caseSensitive = false)
         {
+            // Resetovanje pozicija rotora i postavljanje početnih pozicija iz ključa
             ResetPositions();
-            SetRotorPositions(key);
+            SetRotorPositions(key); // Key Schedule: inicijalizacija pozicija rotora
 
             StringBuilder result = new StringBuilder();
             string text = caseSensitive ? plaintext : plaintext.ToUpper();
 
             foreach (char c in text)
             {
-                // Only encrypt A-Z characters, skip all others
+                // Samo A-Z karakteri se enkriptuju, svi drugi se čuvaju (Case-Sensitive mode)
                 if (!(c >= 'A' && c <= 'Z'))
                 {
                     result.Append(c);
                     continue;
                 }
 
+                // Stepping mechanism: rotiranje rotora nakon svakog karaktera
                 RotateRotors();
 
                 char ch = c;
 
-                // 1. Plugboard (before entering rotors)
+                // 1. Plugboard: opciona razmena slova pre ulaska u rotore
                 if (_plugboard.ContainsKey(ch))
                 {
                     ch = _plugboard[ch];
                 }
 
-                // 2. Forward through rotors
+                // 2. Prolazak napred kroz tri rotora (desno ka levo)
                 ch = RotorForward(_rotor3, ch, _position3, _ring3);
                 ch = RotorForward(_rotor2, ch, _position2, _ring2);
                 ch = RotorForward(_rotor1, ch, _position1, _ring1);
 
-                // 3. Reflector
+                // 3. Reflektor: zamena slova (omogućava simetričnost)
                 ch = _reflector[ch - 'A'];
 
-                // 4. Backward through rotors
+                // 4. Prolazak nazad kroz tri rotora (levo ka desno)
                 ch = RotorBackward(_rotor1, ch, _position1, _ring1);
                 ch = RotorBackward(_rotor2, ch, _position2, _ring2);
                 ch = RotorBackward(_rotor3, ch, _position3, _ring3);
 
-                // 5. Plugboard (after exiting rotors)
+                // 5. Plugboard: opciona razmena slova nakon izlaska iz rotora
                 if (_plugboard.ContainsKey(ch))
                 {
                     ch = _plugboard[ch];
@@ -154,40 +170,52 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         }
 
         /// <summary>
-        /// Decrypt string (Enigma is symmetric, so same as encrypt)
+        /// Dekripcija stringa (Enigma je simetričan, dekripcija = enkripcija)
         /// </summary>
         private string DecryptString(string ciphertext, string key, bool caseSensitive = false)
         {
+            // Enigma je simetričan algoritam: dekripcija je isti proces kao enkripcija
             return EncryptString(ciphertext, key, caseSensitive);
         }
 
+        // Prolazak karaktera kroz rotor napred (ulaz → izlaz)
         private char RotorForward(string rotor, char input, int position, int ring)
         {
+            // Kalkulacija offseta sa pozicijom i ring settingom
             int offset = (input - 'A' + position - ring + 26) % 26;
             char output = rotor[offset];
             int result = (output - 'A' - position + ring + 26) % 26;
             return (char)('A' + result);
         }
 
+        // Prolazak karaktera kroz rotor unazad (izlaz → ulaz)
         private char RotorBackward(string rotor, char input, int position, int ring)
         {
+            // Kalkulacija offseta i pronalaženje inverza supstitucije
             int offset = (input - 'A' + position - ring + 26) % 26;
             int index = rotor.IndexOf((char)('A' + offset));
             int result = (index - position + ring + 26) % 26;
             return (char)('A' + result);
         }
 
+        // Stepping mechanism: rotiranje rotora nakon svakog karaktera
         private void RotateRotors()
         {
+            // Prvi rotor se rotira posle svakog karaktera
             _position1 = (_position1 + 1) % 26;
+            
+            // Drugi rotor rotiranje (kada prvi pređe pun krug)
             if (_position1 == 0)
             {
                 _position2 = (_position2 + 1) % 26;
+                
+                // Treći rotor rotiranje (kada drugi pređe pun krug)
                 if (_position2 == 0)
                     _position3 = (_position3 + 1) % 26;
             }
         }
 
+        // Key Schedule: inicijalizacija pozicija rotora iz ključa (početne pozicije)
         private void SetRotorPositions(string key)
         {
             if (string.IsNullOrEmpty(key) || key.Length < 3)
@@ -198,6 +226,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
                 return;
             }
 
+            // Konverzija prvih 3 karaktera ključa u pozicije rotora (A=0, B=1, ..., Z=25)
             key = key.ToUpper();
             _position1 = (key[0] - 'A' + 26) % 26;
             _position2 = (key.Length > 1 ? (key[1] - 'A' + 26) % 26 : 0);
