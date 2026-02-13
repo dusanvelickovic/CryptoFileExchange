@@ -20,6 +20,7 @@ namespace CryptoFileExchange.UI
             btnOpenOutput = new Button();
             btnToggleWatcher = new Button();
             btnEncryptFile = new Button();
+            btnDecryptFile = new Button();
             lblStatus = new Label();
             groupBoxLog = new GroupBox();
             listViewLog = new ListView();
@@ -38,6 +39,7 @@ namespace CryptoFileExchange.UI
             groupBoxConfig.Controls.Add(btnOpenOutput);
             groupBoxConfig.Controls.Add(btnToggleWatcher);
             groupBoxConfig.Controls.Add(btnEncryptFile);
+            groupBoxConfig.Controls.Add(btnDecryptFile);
             groupBoxConfig.Controls.Add(lblStatus);
             groupBoxConfig.Dock = DockStyle.Top;
             groupBoxConfig.Location = new Point(0, 0);
@@ -129,12 +131,25 @@ namespace CryptoFileExchange.UI
             btnEncryptFile.UseVisualStyleBackColor = false;
             btnEncryptFile.Click += btnEncryptFile_Click;
             // 
+            // btnDecryptFile
+            // 
+            btnDecryptFile.BackColor = Color.Orange;
+            btnDecryptFile.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            btnDecryptFile.ForeColor = Color.White;
+            btnDecryptFile.Location = new Point(375, 140);
+            btnDecryptFile.Name = "btnDecryptFile";
+            btnDecryptFile.Size = new Size(150, 35);
+            btnDecryptFile.TabIndex = 9;
+            btnDecryptFile.Text = "Decrypt File...";
+            btnDecryptFile.UseVisualStyleBackColor = false;
+            btnDecryptFile.Click += btnDecryptFile_Click;
+            // 
             // lblStatus
             // 
             lblStatus.AutoSize = true;
             lblStatus.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             lblStatus.ForeColor = Color.Gray;
-            lblStatus.Location = new Point(380, 149);
+            lblStatus.Location = new Point(535, 149);
             lblStatus.Name = "lblStatus";
             lblStatus.Size = new Size(61, 19);
             lblStatus.TabIndex = 7;
@@ -203,6 +218,7 @@ namespace CryptoFileExchange.UI
         private Button btnOpenOutput;
         private Button btnToggleWatcher;
         private Button btnEncryptFile;
+        private Button btnDecryptFile;
         private Label lblStatus;
         
         private GroupBox groupBoxLog;

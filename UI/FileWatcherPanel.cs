@@ -10,7 +10,16 @@ namespace CryptoFileExchange.UI
     public partial class FileWatcherPanel : UserControl
     {
         private FileSystemWatcherService? _watcherService;
+        private DecryptionService? _decryptionService;
+        private MetadataService? _metadataService;
+        
         private const string DEFAULT_OUTPUT_DIR = "EncryptedFiles";
+        
+        // Kljucevi za dekripciju (moraju biti isti kao kod enkripcije)
+        private const string ENIGMA_KEY = "FileWatcherEnigmaKey2024";
+        private const string XXTEA_KEY = "XXTEAAutoEncryptKey123";
+        private const string CFB_KEY = "CFBModeAutoEncrypt456";
+        private const string CFB_IV = "";
 
         public FileWatcherPanel()
         {
@@ -20,6 +29,7 @@ namespace CryptoFileExchange.UI
             ConfigureListView();
             
             InitializeWatcherService();
+            InitializeDecryptionService();
         }
 
         private void ConfigureListView()
@@ -73,6 +83,24 @@ namespace CryptoFileExchange.UI
                 MessageBox.Show($"Service initialization error: {ex.Message}", 
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 AddLogEntry($"Failed to initialize FileWatcherService: {ex.Message}", Color.Red, ex);
+            }
+        }
+
+        private void InitializeDecryptionService()
+        {
+            try
+            {
+                _decryptionService = new DecryptionService(ENIGMA_KEY, XXTEA_KEY, CFB_KEY, CFB_IV);
+                _metadataService = new MetadataService();
+                
+                AddLogEntry("Decryption service initialized", Color.Green);
+                Log.Information("DecryptionService initialized");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Decryption service initialization error: {ex.Message}", 
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                AddLogEntry($"Failed to initialize DecryptionService: {ex.Message}", Color.Red, ex);
             }
         }
 
@@ -142,6 +170,7 @@ namespace CryptoFileExchange.UI
                 txtTargetDirectory.Enabled = false;
                 btnBrowseTarget.Enabled = false;
                 btnEncryptFile.Enabled = false; // Disable manual encryption
+                btnDecryptFile.Enabled = false; // Disable manual decryption
 
                 AddLogEntry($"FSW Started: {txtTargetDirectory.Text}", Color.Green);
             }
@@ -167,6 +196,7 @@ namespace CryptoFileExchange.UI
                 txtTargetDirectory.Enabled = true;
                 btnBrowseTarget.Enabled = true;
                 btnEncryptFile.Enabled = true; // Enable manual encryption
+                btnDecryptFile.Enabled = true; // Enable manual decryption
 
                 AddLogEntry("FWS Stopped", Color.Orange);
             }
@@ -401,6 +431,145 @@ namespace CryptoFileExchange.UI
                     {
                         // Re-enable button
                         btnEncryptFile.Enabled = true;
+                    }
+                }
+            }
+        }
+
+        private async void btnDecryptFile_Click(object sender, EventArgs e)
+        {
+            if (_decryptionService == null || _metadataService == null)
+            {
+                MessageBox.Show("Decryption service is not initialized!", "Error", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Title = "Choose encrypted file for decryption";
+                dialog.Filter = "Encrypted Files (*.cfex)|*.cfex|All Files (*.*)|*.*";
+                dialog.CheckFileExists = true;
+                dialog.Multiselect = false;
+
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    try
+                    {
+                        string encryptedFilePath = dialog.FileName;
+                        string fileName = Path.GetFileName(encryptedFilePath);
+                        
+                        AddLogEntry($"Manual decryption started: {fileName}", Color.Blue);
+                        Log.Information("Starting manual decryption: {FilePath}", encryptedFilePath);
+
+                        btnDecryptFile.Enabled = false;
+
+                        // Ucitaj enkriptovani fajl
+                        byte[] fileWithHeader = await File.ReadAllBytesAsync(encryptedFilePath);
+                        
+                        AddLogEntry($"File loaded: {fileWithHeader.Length} bytes", Color.Blue);
+
+                        // Ekstrakcija metadata i enkriptovanih podataka
+                        var (metadata, encryptedData) = _metadataService.ReadHeaderFromFile(fileWithHeader);
+
+                        if (metadata != null)
+                        {
+                            AddLogEntry("=== Metadata Found ===", Color.Green);
+                            AddLogEntry($"  Original Name: {metadata.OriginalFileName}", Color.Green);
+                            AddLogEntry($"  Original Size: {FormatFileSize(metadata.FileSize)}", Color.Green);
+                            AddLogEntry($"  Created: {metadata.CreationTime:yyyy-MM-dd HH:mm:ss}", Color.Green);
+                            AddLogEntry($"  Encryption: {metadata.EncryptionAlgorithm}", Color.Green);
+                            AddLogEntry($"  Hash: {metadata.FileHash}", Color.Green);
+                            AddLogEntry("======================", Color.Green);
+
+                            Log.Information("Metadata extracted: OriginalName={OriginalName}, Size={Size}, Hash={Hash}",
+                                metadata.OriginalFileName, metadata.FileSize, metadata.FileHash);
+                        }
+                        else
+                        {
+                            AddLogEntry("No metadata found in file", Color.Orange);
+                            Log.Warning("No metadata header found in file: {FilePath}", encryptedFilePath);
+                        }
+
+                        // Dekriptovanje
+                        AddLogEntry("Decrypting file...", Color.Blue);
+                        
+                        string expectedHash = metadata?.FileHash ?? "";
+                        var (decryptedData, hashValid) = await _decryptionService.DecryptFileAsync(encryptedData, expectedHash);
+
+                        if (!string.IsNullOrEmpty(expectedHash))
+                        {
+                            if (hashValid)
+                            {
+                                AddLogEntry("Hash verification: SUCCESS", Color.Green);
+                                Log.Information("Hash verification passed");
+                            }
+                            else
+                            {
+                                AddLogEntry("Hash verification: FAILED (file may be corrupted!)", Color.Red);
+                                Log.Warning("Hash verification failed for file: {FilePath}", encryptedFilePath);
+                                
+                                var result = MessageBox.Show(
+                                    "Hash verification FAILED!\n\nThe file may be corrupted or tampered with.\n\nDo you want to save it anyway?",
+                                    "Hash Verification Failed",
+                                    MessageBoxButtons.YesNo,
+                                    MessageBoxIcon.Warning);
+                                
+                                if (result == DialogResult.No)
+                                {
+                                    AddLogEntry("Decryption cancelled by user", Color.Orange);
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Sasuvaj dekriptovani fajl u istom folderu kao original
+                        string outputDirectory = Path.GetDirectoryName(encryptedFilePath) ?? AppDomain.CurrentDomain.BaseDirectory;
+                        string originalFileName = metadata?.OriginalFileName ?? Path.GetFileNameWithoutExtension(fileName);
+                        string outputPath = Path.Combine(outputDirectory, originalFileName);
+
+                        // Ako fajl vec postoji, dodaj sufiks
+                        if (File.Exists(outputPath))
+                        {
+                            string fileNameWithoutExt = Path.GetFileNameWithoutExtension(originalFileName);
+                            string extension = Path.GetExtension(originalFileName);
+                            int counter = 1;
+                            
+                            do
+                            {
+                                outputPath = Path.Combine(outputDirectory, $"{fileNameWithoutExt}_decrypted_{counter}{extension}");
+                                counter++;
+                            }
+                            while (File.Exists(outputPath));
+                        }
+
+                        await _decryptionService.SaveDecryptedFileAsync(decryptedData, outputPath);
+
+                        AddLogEntry($"File decrypted and saved: {Path.GetFileName(outputPath)}", Color.DarkGreen);
+                        Log.Information("Decrypted file saved to: {OutputPath}", outputPath);
+
+                        string hashInfo = hashValid ? "Hash: VALID" : "Hash: INVALID";
+                        MessageBox.Show(
+                            $"File successfully decrypted!\n\n" +
+                            $"Original: {fileName}\n" +
+                            $"Decrypted: {Path.GetFileName(outputPath)}\n" +
+                            $"Saved to: {outputDirectory}\n" +
+                            $"Size: {FormatFileSize(decryptedData.Length)}\n" +
+                            $"{hashInfo}",
+                            "Decryption Complete",
+                            MessageBoxButtons.OK,
+                            hashValid ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+                    }
+                    catch (Exception ex)
+                    {
+                        AddLogEntry($"Decryption error: {ex.Message}", Color.Red, ex);
+                        Log.Error(ex, "Manual decryption failed");
+                        MessageBox.Show($"Decryption error:\n\n{ex.Message}", "Error", 
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                    finally
+                    {
+                        btnDecryptFile.Enabled = true;
                     }
                 }
             }
