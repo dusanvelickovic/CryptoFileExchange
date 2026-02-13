@@ -6,8 +6,8 @@ using System.Text;
 namespace CryptoFileExchange.Algorithms.Symmetric
 {
     /// <summary>
-    /// Enigma šifarski algoritam kompatibilan sa DrugaAplikacija
-    /// Radi sa 26-slovnom azbukom (A-Z), preskače sve druge karaktere
+    /// Enigma sifarski algoritam
+    /// Radi sa 26-slovnom azbukom (A-Z), preskace sve druge karaktere
     /// 
     /// Komponente:
     /// - 3 Rotora: svaki sa 26-slovnom supstitucijom
@@ -22,7 +22,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         private const string DEFAULT_ROTOR2 = "AJDKSIRUXBLHWTMCQGZNPYFVOE";
         private const string DEFAULT_ROTOR3 = "BDFHJLCPRTXVZNYEIWGAKMUSQO";
         
-        // Reflektor: zamena slova (omogućava simetričnu enkripciju/dekripciju)
+        // Reflektor: zamena slova (omogućava simetricnu enkripciju/dekripciju)
         private const string REFLECTOR = "YRUHQSLDPXNGOKMIEBFZCWVJAT";
 
         private string _rotor1;
@@ -69,7 +69,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             // Enkripcija Base64 stringa koristeći Enigma mehanizam
             string encryptedText = EncryptString(base64Text, key, caseSensitive: true);
             
-            // Vraćanje kao UTF-8 bajtovi
+            // Vracanje kao UTF-8 bajtovi
             return Encoding.UTF8.GetBytes(encryptedText);
         }
 
@@ -117,7 +117,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         /// </summary>
         private string EncryptString(string plaintext, string key, bool caseSensitive = false)
         {
-            // Resetovanje pozicija rotora i postavljanje početnih pozicija iz ključa
+            // Resetovanje pozicija rotora i postavljanje pocetnih pozicija iz ključa
             ResetPositions();
             SetRotorPositions(key); // Key Schedule: inicijalizacija pozicija rotora
 
@@ -126,7 +126,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
 
             foreach (char c in text)
             {
-                // Samo A-Z karakteri se enkriptuju, svi drugi se čuvaju (Case-Sensitive mode)
+                // Samo A-Z karakteri se enkriptuju, svi drugi se cuvaju (Case-Sensitive mode)
                 if (!(c >= 'A' && c <= 'Z'))
                 {
                     result.Append(c);
@@ -149,7 +149,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
                 ch = RotorForward(_rotor2, ch, _position2, _ring2);
                 ch = RotorForward(_rotor1, ch, _position1, _ring1);
 
-                // 3. Reflektor: zamena slova (omogućava simetričnost)
+                // 3. Reflektor: zamena slova (omogucava simetricnost)
                 ch = _reflector[ch - 'A'];
 
                 // 4. Prolazak nazad kroz tri rotora (levo ka desno)
@@ -170,11 +170,11 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         }
 
         /// <summary>
-        /// Dekripcija stringa (Enigma je simetričan, dekripcija = enkripcija)
+        /// Dekripcija stringa (Enigma je simetrican, dekripcija = enkripcija)
         /// </summary>
         private string DecryptString(string ciphertext, string key, bool caseSensitive = false)
         {
-            // Enigma je simetričan algoritam: dekripcija je isti proces kao enkripcija
+            // Enigma je simetrican algoritam: dekripcija je isti proces kao enkripcija
             return EncryptString(ciphertext, key, caseSensitive);
         }
 
@@ -191,7 +191,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
         // Prolazak karaktera kroz rotor unazad (izlaz → ulaz)
         private char RotorBackward(string rotor, char input, int position, int ring)
         {
-            // Kalkulacija offseta i pronalaženje inverza supstitucije
+            // Kalkulacija offseta i pronalazenje inverza supstitucije
             int offset = (input - 'A' + position - ring + 26) % 26;
             int index = rotor.IndexOf((char)('A' + offset));
             int result = (index - position + ring + 26) % 26;
@@ -209,13 +209,13 @@ namespace CryptoFileExchange.Algorithms.Symmetric
             {
                 _position2 = (_position2 + 1) % 26;
                 
-                // Treći rotor rotiranje (kada drugi pređe pun krug)
+                // Treci rotor rotiranje (kada drugi pređe pun krug)
                 if (_position2 == 0)
                     _position3 = (_position3 + 1) % 26;
             }
         }
 
-        // Key Schedule: inicijalizacija pozicija rotora iz ključa (početne pozicije)
+        // Key Schedule: inicijalizacija pozicija rotora iz kljuca (početne pozicije)
         private void SetRotorPositions(string key)
         {
             if (string.IsNullOrEmpty(key) || key.Length < 3)
@@ -226,7 +226,7 @@ namespace CryptoFileExchange.Algorithms.Symmetric
                 return;
             }
 
-            // Konverzija prvih 3 karaktera ključa u pozicije rotora (A=0, B=1, ..., Z=25)
+            // Konverzija prvih 3 karaktera kljuca u pozicije rotora (A=0, B=1, ..., Z=25)
             key = key.ToUpper();
             _position1 = (key[0] - 'A' + 26) % 26;
             _position2 = (key.Length > 1 ? (key[1] - 'A' + 26) % 26 : 0);
