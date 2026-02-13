@@ -45,11 +45,11 @@ namespace CryptoFileExchange.Algorithms.Hash
 
                 // Prvi prolaz: multiplikator 5
                 Pass(ref a, ref b, ref c, block, 5);
-                KeySchedule(block); // Transformacija bloka između prolaza
+                KeySchedule(block); // Transformacija bloka izmedju prolaza
                 
                 // Drugi prolaz: multiplikator 7
                 Pass(ref c, ref a, ref b, block, 7);
-                KeySchedule(block); // Transformacija bloka između prolaza
+                KeySchedule(block); // Transformacija bloka izmedju prolaza
                 
                 // Treci prolaz: multiplikator 9
                 Pass(ref b, ref c, ref a, block, 9);
